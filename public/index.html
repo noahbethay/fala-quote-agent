@@ -11,7 +11,26 @@
   @keyframes confettiFall{ 0%{ transform:translateY(-20px) rotate(0deg); opacity:1;} 100%{ transform:translateY(520px) rotate(360deg); opacity:0;} }
   @keyframes riseIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
   @keyframes ticker{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+  @keyframes gradientShift{ 0%{background-position:0% 50%;} 50%{background-position:100% 50%;} 100%{background-position:0% 50%;} }
+  @keyframes floatSoft{ 0%,100%{transform:translateY(0);} 50%{transform:translateY(-5px);} }
+  @keyframes scaleIn{ from{opacity:0;transform:scale(.92);} to{opacity:1;transform:scale(1);} }
+  @keyframes checkPop{ 0%{transform:scale(0);opacity:0;} 55%{transform:scale(1.18);opacity:1;} 100%{transform:scale(1);opacity:1;} }
+  @keyframes checkDraw{ from{stroke-dashoffset:24;} to{stroke-dashoffset:0;} }
+  @keyframes fadeUp{ from{opacity:0;transform:translateY(10px);} to{opacity:1;transform:translateY(0);} }
+  @keyframes dotPulse{ 0%,80%,100%{opacity:.3;transform:scale(.85);} 40%{opacity:1;transform:scale(1);} }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important;}
+  }
   #root{min-height:100vh;}
+  button{transition:transform .15s ease, box-shadow .2s ease, filter .15s ease, background-color .15s ease;}
+  button:active{transform:scale(.97);}
+  .fala-btn-primary:hover{transform:translateY(-1px); box-shadow:0 10px 24px rgba(138,46,46,0.28); filter:brightness(1.05);}
+  .fala-card{transition:transform .2s ease, box-shadow .2s ease;}
+  .fala-card:hover{transform:translateY(-2px); box-shadow:0 10px 28px rgba(28,43,51,0.10);}
+  .fala-chip:hover{transform:translateY(-1px); box-shadow:0 6px 14px rgba(28,43,51,0.08);}
+  .fala-input:focus{border-color:#8A2E2E !important; box-shadow:0 0 0 3px rgba(138,46,46,0.12); outline:none;}
+  .fala-input:focus-visible{outline:none;}
+  a:focus-visible, button:focus-visible{outline:2px solid #8A2E2E; outline-offset:2px;}
 </style>
 </head>
 <body>
@@ -117,19 +136,26 @@ function addOnStyle(on){
 
 const styles = {
   screenPad:{padding:"26px 22px 100px",display:"flex",flexDirection:"column",gap:16,minHeight:"100vh"},
-  screen:{flex:1,padding:"26px 22px 100px",display:"flex",flexDirection:"column",gap:16,animation:"riseIn .28s ease"},
+  screen:{flex:1,padding:"26px 22px 100px",display:"flex",flexDirection:"column",gap:16,animation:"fadeUp .32s cubic-bezier(.16,1,.3,1)"},
   eyebrow:{fontSize:11,textTransform:"uppercase",letterSpacing:".1em",color:C.marsh,fontWeight:600},
   h1:{fontFamily:"'Fraunces',Georgia,serif",fontWeight:600,letterSpacing:"-0.01em",lineHeight:1.15,margin:"10px 0 12px",fontSize:30},
   helptext:{fontSize:13.5,color:"#5b6670",lineHeight:1.5},
-  trustGrid:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:20},
-  trustStat:{background:C.paper2,borderRadius:12,padding:"10px 6px"},
+  heroWrap:{borderRadius:24,padding:"32px 20px 26px",background:"linear-gradient(120deg, #F6F1E7 0%, #EDE6D6 35%, #E7E0CE 60%, #F6F1E7 100%)",backgroundSize:"200% 200%",animation:"gradientShift 14s ease infinite",position:"relative",overflow:"hidden"},
+  trustGrid:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:22},
+  trustStat:{background:"rgba(255,253,249,0.72)",backdropFilter:"blur(6px)",WebkitBackdropFilter:"blur(6px)",border:"1px solid rgba(255,255,255,0.6)",borderRadius:14,padding:"12px 6px",boxShadow:"0 4px 16px rgba(28,43,51,0.06)",animation:"floatSoft 5s ease-in-out infinite"},
   trustNum:{fontFamily:"'Fraunces',serif",fontSize:18,fontWeight:600},
   trustLbl:{fontSize:9.5,color:"#5b6670",textTransform:"uppercase",letterSpacing:".04em",marginTop:2},
   badgeRow:{display:"flex",gap:8,marginTop:16,flexWrap:"wrap",justifyContent:"center"},
   badge:{fontSize:11.5,color:C.marshDark,background:"#EAF0EC",borderRadius:999,padding:"6px 10px",fontWeight:600},
+  howItWorksWrap:{marginTop:30,padding:"0 4px"},
+  howStepRow:{display:"flex",alignItems:"flex-start",gap:12,position:"relative"},
+  howStepDot:{width:30,height:30,borderRadius:"50%",background:C.white,border:`1.5px solid ${C.brick}`,color:C.brick,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,flexShrink:0,zIndex:1},
+  howStepLine:{position:"absolute",left:14,top:30,bottom:-14,width:1.5,background:`linear-gradient(${C.brick}, ${C.line})`},
+  howStepTitle:{fontSize:13.5,fontWeight:700,color:C.ink},
+  howStepSub:{fontSize:12,color:"#6b7680",marginTop:1,lineHeight:1.4},
   footerNav:{position:"sticky",bottom:0,left:0,right:0,background:C.white,borderTop:`1px solid ${C.line}`,padding:"14px 22px",display:"flex",gap:10,alignItems:"center",maxWidth:480,margin:"0 auto"},
-  btnPrimaryFull:{border:"none",borderRadius:10,padding:"14px 20px",fontSize:15,fontWeight:600,fontFamily:"inherit",cursor:"pointer",background:C.brick,color:C.white,flex:1,width:"100%"},
-  btnPrimary:{border:"none",borderRadius:10,padding:"14px 20px",fontSize:15,fontWeight:600,fontFamily:"inherit",cursor:"pointer",background:C.brick,color:C.white,flex:1},
+  btnPrimaryFull:{border:"none",borderRadius:10,padding:"14px 20px",fontSize:15,fontWeight:600,fontFamily:"inherit",cursor:"pointer",background:C.brick,color:C.white,flex:1,width:"100%",boxShadow:"0 6px 16px rgba(138,46,46,0.22)"},
+  btnPrimary:{border:"none",borderRadius:10,padding:"14px 20px",fontSize:15,fontWeight:600,fontFamily:"inherit",cursor:"pointer",background:C.brick,color:C.white,flex:1,boxShadow:"0 6px 16px rgba(138,46,46,0.22)"},
   btnGhost:{border:"none",borderRadius:10,padding:"14px 10px",fontSize:15,fontWeight:600,fontFamily:"inherit",cursor:"pointer",background:"transparent",color:"#6b7680"},
   producerLink:{textAlign:"center",fontSize:11,color:"#9aa3ab",padding:"10px 0 4px"},
   resumeBanner:{background:C.paper2,borderRadius:12,padding:14,marginBottom:4},
@@ -147,7 +173,7 @@ const styles = {
   optionsWrap:{display:"flex",flexDirection:"column",gap:10,marginTop:4},
   optSub:{display:"block",fontSize:12,fontWeight:400,color:"#6b7680",marginTop:2},
   chipsWrap:{display:"flex",flexWrap:"wrap",gap:8,marginTop:4},
-  input:{width:"100%",padding:"13px 14px",borderRadius:10,border:`1.5px solid ${C.line}`,fontSize:15,fontFamily:"inherit",background:C.white,color:C.ink,boxSizing:"border-box"},
+  input:{width:"100%",padding:"13px 14px",borderRadius:10,border:`1.5px solid ${C.line}`,fontSize:15,fontFamily:"inherit",background:C.white,color:C.ink,boxSizing:"border-box",transition:"border-color .15s ease, box-shadow .15s ease"},
   errorText:{color:C.danger,fontSize:12.5,fontWeight:600,marginTop:-6},
   fieldLabel:{display:"flex",flexDirection:"column",gap:6,fontSize:12.5,fontWeight:600,color:"#4b5560"},
   row2:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
@@ -365,6 +391,8 @@ function App(){
   const [referralCopied, setReferralCopied] = useState(false);
   const [declFile, setDeclFile] = useState(null);
   const [declStatus, setDeclStatus] = useState("idle"); // idle | uploading | done | error
+  const [declStepIdx, setDeclStepIdx] = useState(0);
+  const DECL_STEPS = ["Reading declarations page…","Extracting policy details…","Checking carrier eligibility…","Saving to your file…"];
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
@@ -456,13 +484,22 @@ function App(){
     if(file.size > 10*1024*1024){ setDeclStatus("error"); return; }
     setDeclFile(file);
     setDeclStatus("uploading");
+    setDeclStepIdx(0);
+    const stepMs = 550;
+    const stepTimer = setInterval(()=>{ setDeclStepIdx(i => Math.min(i+1, DECL_STEPS.length-1)); }, stepMs);
+    const started = Date.now();
     try{
       const fd = new FormData();
       fd.append("declarations", file);
       const res = await fetch(`${API}/api/leads/${lastLead.id}/declarations`, { method:"POST", body: fd });
       if(!res.ok) throw new Error("upload failed");
+      const minDelay = DECL_STEPS.length * stepMs;
+      const elapsed = Date.now() - started;
+      if(elapsed < minDelay) await new Promise(r=>setTimeout(r, minDelay - elapsed));
+      clearInterval(stepTimer);
       setDeclStatus("done");
     }catch(e){
+      clearInterval(stepTimer);
       setDeclStatus("error");
     }
   }
@@ -557,27 +594,51 @@ function App(){
               </div>
             )}
             <div style={{textAlign:"center",marginTop:"auto",marginBottom:"auto"}}>
-              <div style={{width:76,height:76,margin:"0 auto 14px",borderRadius:"50%",background:C.paper2,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Fraunces',serif",fontSize:22,color:C.marsh,fontWeight:600}}>FA</div>
-              <div style={styles.eyebrow}>Financial Assurance, LLC · Louisiana</div>
-              <h1 style={styles.h1}>{heroHeadline}</h1>
-              <p style={{...styles.helptext,fontSize:14.5,maxWidth:360,marginLeft:"auto",marginRight:"auto"}}>{heroSub}</p>
+              <div style={styles.heroWrap}>
+                <div aria-hidden="true" style={{position:"absolute",top:-30,right:-30,width:140,height:140,borderRadius:"50%",background:"radial-gradient(circle, rgba(138,46,46,0.10), transparent 70%)",filter:"blur(2px)"}}></div>
+                <div aria-hidden="true" style={{position:"absolute",bottom:-40,left:-30,width:160,height:160,borderRadius:"50%",background:"radial-gradient(circle, rgba(47,93,80,0.10), transparent 70%)",filter:"blur(2px)"}}></div>
 
-              <div style={styles.trustGrid}>
-                <div style={styles.trustStat}><div style={styles.trustNum}>{config.rating}★</div><div style={styles.trustLbl}>{config.reviewCount} reviews</div></div>
-                <div style={styles.trustStat}><div style={styles.trustNum}>${config.avgSavings}</div><div style={styles.trustLbl}>avg. saved/yr</div></div>
-                <div style={styles.trustStat}><div style={styles.trustNum}>{config.carrierCount}+</div><div style={styles.trustLbl}>carriers compared</div></div>
-                <div style={styles.trustStat}><div style={styles.trustNum}>{config.yearsInBusiness}</div><div style={styles.trustLbl}>yrs in Louisiana</div></div>
+                <div style={{width:76,height:76,margin:"0 auto 14px",borderRadius:"50%",background:C.paper2,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Fraunces',serif",fontSize:22,color:C.marsh,fontWeight:600,boxShadow:"0 8px 22px rgba(28,43,51,0.10)",animation:"scaleIn .4s cubic-bezier(.16,1,.3,1)",position:"relative",zIndex:1}}>FA</div>
+                <div style={{position:"relative",zIndex:1}}>
+                  <div style={styles.eyebrow}>Financial Assurance, LLC · Louisiana</div>
+                  <h1 style={styles.h1}>{heroHeadline}</h1>
+                  <p style={{...styles.helptext,fontSize:14.5,maxWidth:360,marginLeft:"auto",marginRight:"auto"}}>{heroSub}</p>
+
+                  <div style={styles.trustGrid}>
+                    <div className="fala-card" style={{...styles.trustStat, animationDelay:"0s"}}><div style={styles.trustNum}>{config.rating}★</div><div style={styles.trustLbl}>{config.reviewCount} reviews</div></div>
+                    <div className="fala-card" style={{...styles.trustStat, animationDelay:".15s"}}><div style={styles.trustNum}>${config.avgSavings}</div><div style={styles.trustLbl}>avg. saved/yr</div></div>
+                    <div className="fala-card" style={{...styles.trustStat, animationDelay:".3s"}}><div style={styles.trustNum}>{config.carrierCount}+</div><div style={styles.trustLbl}>carriers compared</div></div>
+                    <div className="fala-card" style={{...styles.trustStat, animationDelay:".45s"}}><div style={styles.trustNum}>{config.yearsInBusiness}</div><div style={styles.trustLbl}>yrs in Louisiana</div></div>
+                  </div>
+
+                  <div style={styles.badgeRow}>
+                    <span style={styles.badge}>🛡️ Licensed LA agent</span>
+                    <span style={styles.badge}>✓ No cost to you</span>
+                    <span style={styles.badge}>⏱ 3-minute form</span>
+                  </div>
+                </div>
               </div>
 
-              <div style={styles.badgeRow}>
-                <span style={styles.badge}>Licensed LA agent</span>
-                <span style={styles.badge}>No cost to you</span>
-                <span style={styles.badge}>3-minute form</span>
+              <div style={styles.howItWorksWrap}>
+                {[
+                  { n:"1", t:"Tell us about your home & auto", s:"A few quick questions — takes about 3 minutes." },
+                  { n:"2", t:"We compare Louisiana carriers", s:"20+ carriers checked for eligibility and price." },
+                  { n:"3", t:"Get your personalized quote", s:"A real licensed agent follows up, usually same day." },
+                ].map((step,i,arr)=>(
+                  <div key={step.n} style={{...styles.howStepRow, paddingBottom: i<arr.length-1 ? 22 : 0, animation:`fadeUp .4s ease ${i*0.12}s both`}}>
+                    {i<arr.length-1 && <div style={styles.howStepLine}></div>}
+                    <div style={styles.howStepDot}>{step.n}</div>
+                    <div style={{textAlign:"left",paddingTop:3}}>
+                      <div style={styles.howStepTitle}>{step.t}</div>
+                      <div style={styles.howStepSub}>{step.s}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
           <div style={styles.footerNav}>
-            <button style={styles.btnPrimaryFull} onClick={clickStart}>{heroCta} →</button>
+            <button className="fala-btn-primary" style={styles.btnPrimaryFull} onClick={clickStart}>{heroCta} →</button>
           </div>
           <div style={{textAlign:"center",fontSize:12,padding:"6px 0 4px"}}><a href="./ai-assistant.html" style={{color:"#2F5D50",fontWeight:600}}>Prefer to chat? Try our AI assistant →</a></div>
           <div style={styles.producerLink}><a href="#" style={{color:"#9aa3ab"}} onClick={goPin}>Producer login</a></div>
@@ -621,7 +682,7 @@ function App(){
               {step.type==="options" && (
                 <div style={styles.optionsWrap}>
                   {step.options.map(o=>(
-                    <button key={o.v} style={optStyle(val===o.v)} onClick={()=>{ setAnswer(step.id,o.v); goNextClick(); }}>
+                    <button key={o.v} className="fala-chip" style={optStyle(val===o.v)} onClick={()=>{ setAnswer(step.id,o.v); goNextClick(); }}>
                       {o.label}{o.sub && <span style={styles.optSub}>{o.sub}</span>}
                     </button>
                   ))}
@@ -629,7 +690,7 @@ function App(){
               )}
 
               {step.type==="select" && (
-                <select style={styles.input} value={val||""} onChange={e=>setAnswer(step.id,e.target.value)}>
+                <select className="fala-input" style={styles.input} value={val||""} onChange={e=>setAnswer(step.id,e.target.value)}>
                   <option value="" disabled>Choose a parish…</option>
                   {step.options.map(o=><option key={o} value={o}>{o}</option>)}
                 </select>
@@ -638,7 +699,7 @@ function App(){
               {step.type==="chips-single" && (
                 <div style={styles.chipsWrap}>
                   {step.options.map(o=>(
-                    <button key={o} style={chipStyle(val===o)} onClick={()=>{ setAnswer(step.id,o); goNextClick(); }}>{o}</button>
+                    <button key={o} className="fala-chip" style={chipStyle(val===o)} onClick={()=>{ setAnswer(step.id,o); goNextClick(); }}>{o}</button>
                   ))}
                 </div>
               )}
@@ -646,13 +707,13 @@ function App(){
               {step.type==="chips-multi" && (
                 <div style={styles.chipsWrap}>
                   {step.options.map(o=>(
-                    <button key={o} style={chipStyle((val||[]).includes(o))} onClick={()=>toggleMulti(step.id,o)}>{o}</button>
+                    <button key={o} className="fala-chip" style={chipStyle((val||[]).includes(o))} onClick={()=>toggleMulti(step.id,o)}>{o}</button>
                   ))}
                 </div>
               )}
 
               {["text","tel","email"].includes(step.type) && (
-                <input type={step.type} style={styles.input} placeholder={step.placeholder||""} value={val||""}
+                <input type={step.type} className="fala-input" style={styles.input} placeholder={step.placeholder||""} value={val||""}
                   onChange={e=>setAnswer(step.id,e.target.value)}
                   onKeyDown={e=>{ if(e.key==="Enter") goNextClick(); }} />
               )}
@@ -662,7 +723,7 @@ function App(){
 
             <div style={styles.footerNav}>
               <button style={styles.btnGhost} onClick={goBack}>{stepIndex===0 ? "" : "← Back"}</button>
-              <button style={styles.btnPrimary} onClick={goNextClick} disabled={submitting}>{submitting ? "Submitting…" : "Continue"}</button>
+              <button className="fala-btn-primary" style={styles.btnPrimary} onClick={goNextClick} disabled={submitting}>{submitting ? "Submitting…" : "Continue"}</button>
             </div>
             {submitError && <div style={{...styles.errorText, textAlign:"center", padding:"0 22px 14px"}}>{submitError}</div>}
           </React.Fragment>
@@ -693,21 +754,26 @@ function App(){
             )}
             <div style={{...styles.screen, paddingTop:44}}>
               <div style={{textAlign:"center"}}>
-                <div style={{fontSize:40,marginBottom:6}}>✅</div>
-                <h1 style={{...styles.h1, fontSize:26}}>Thanks, {leadFirstName}.</h1>
-                <p style={{...styles.helptext, fontSize:14.5, marginTop:10}}>
+                <div style={{width:64,height:64,margin:"0 auto 10px",borderRadius:"50%",background:"#EAF0EC",display:"flex",alignItems:"center",justifyContent:"center",animation:"checkPop .5s cubic-bezier(.16,1,.3,1)"}}>
+                  <svg width="30" height="30" viewBox="0 0 24 24" fill="none">
+                    <path d="M4 12.5L9.5 18L20 6" stroke={C.marsh} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+                      style={{strokeDasharray:24, strokeDashoffset:24, animation:"checkDraw .5s ease .15s forwards"}} />
+                  </svg>
+                </div>
+                <h1 style={{...styles.h1, fontSize:26, animation:"fadeUp .35s ease .1s both"}}>Thanks, {leadFirstName}.</h1>
+                <p style={{...styles.helptext, fontSize:14.5, marginTop:10, animation:"fadeUp .35s ease .18s both"}}>
                   Got everything I need. I'll compare Louisiana carriers for your situation and reach out by {bestTimeLabel} — usually within one business day.
                 </p>
-                <div style={styles.confirmRow}>
+                <div style={{...styles.confirmRow, animation:"fadeUp .35s ease .26s both"}}>
                   <span style={styles.badge}>📱 Text confirmation sent</span>
                   <span style={styles.badge}>✉️ Email confirmation sent</span>
                 </div>
-                <p style={{...styles.helptext, marginTop:14}}>
+                <p style={{...styles.helptext, marginTop:14, animation:"fadeUp .35s ease .32s both"}}>
                   Need something sooner? Call or text {config.agentName} directly at <strong>{config.agentPhone}</strong>.
                 </p>
               </div>
 
-              <div style={styles.referralCard}>
+              <div className="fala-card" style={{...styles.referralCard, animation:"fadeUp .35s ease .38s both"}}>
                 <div style={styles.eyebrow}>Friends &amp; family</div>
                 <div style={styles.referralTitle}>Give ${config.referralBonus}, get ${config.referralBonus}</div>
                 <p style={{...styles.helptext, fontSize:13}}>Share your link — when a friend gets a quote, you both get a ${config.referralBonus} gift card.</p>
@@ -717,7 +783,7 @@ function App(){
                 </div>
               </div>
 
-              <div style={styles.addOnCard}>
+              <div className="fala-card" style={{...styles.addOnCard, animation:"fadeUp .35s ease .44s both"}}>
                 <div style={styles.eyebrow}>Want a quote on these too?</div>
                 <div style={styles.chipsWrap}>
                   {addOnList.map(a=>(
@@ -726,18 +792,42 @@ function App(){
                 </div>
               </div>
 
-              <div style={styles.addOnCard}>
+              <div className="fala-card" style={{...styles.addOnCard, border:`1.5px solid ${C.line}`, borderRadius:14, padding:16}}>
                 <div style={styles.eyebrow}>Optional</div>
                 <div style={styles.referralTitle}>Have a current declarations page?</div>
                 <p style={{...styles.helptext, fontSize:13}}>Upload it and I can compare it against new quotes directly — totally optional, speeds things up if you have it handy.</p>
                 {declStatus==="done" ? (
-                  <div style={{...styles.badge, marginTop:8}}>✅ Uploaded — thanks!</div>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,animation:"fadeUp .3s ease"}}>
+                    <div style={{width:26,height:26,borderRadius:"50%",background:"#EAF0EC",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,animation:"checkPop .4s cubic-bezier(.16,1,.3,1)"}}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M4 12.5L9.5 18L20 6" stroke={C.marsh} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                    </div>
+                    <span style={{fontSize:13,fontWeight:600,color:C.marshDark}}>Uploaded — thanks!</span>
+                  </div>
+                ) : declStatus==="uploading" ? (
+                  <div style={{marginTop:12,display:"flex",flexDirection:"column",gap:7}}>
+                    {DECL_STEPS.map((label,i)=>(
+                      <div key={label} style={{display:"flex",alignItems:"center",gap:9,opacity: i<=declStepIdx ? 1 : 0.35, transition:"opacity .25s ease"}}>
+                        {i<declStepIdx ? (
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}><path d="M4 12.5L9.5 18L20 6" stroke={C.marsh} strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        ) : i===declStepIdx ? (
+                          <span style={{width:14,height:14,flexShrink:0,display:"flex",alignItems:"center",gap:2}}>
+                            <span style={{width:3,height:3,borderRadius:99,background:C.brick,animation:"dotPulse 1.2s ease infinite"}}></span>
+                            <span style={{width:3,height:3,borderRadius:99,background:C.brick,animation:"dotPulse 1.2s ease .15s infinite"}}></span>
+                            <span style={{width:3,height:3,borderRadius:99,background:C.brick,animation:"dotPulse 1.2s ease .3s infinite"}}></span>
+                          </span>
+                        ) : (
+                          <span style={{width:14,height:14,borderRadius:"50%",border:`1.5px solid ${C.line}`,flexShrink:0}}></span>
+                        )}
+                        <span style={{fontSize:12.5, fontWeight: i===declStepIdx ? 600 : 400}}>{label}</span>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
                   <React.Fragment>
-                    <label style={{...styles.btnGhost, display:"inline-block", marginTop:8, cursor:"pointer"}}>
-                      {declStatus==="uploading" ? "Uploading…" : (declFile ? declFile.name : "Choose PDF or photo")}
+                    <label className="fala-chip" style={{...styles.btnGhost, display:"inline-block", marginTop:8, cursor:"pointer", border:`1.5px solid ${C.line}`}}>
+                      {declFile ? declFile.name : "Choose PDF or photo"}
                       <input type="file" accept="application/pdf,image/jpeg,image/png,image/heic" style={{display:"none"}}
-                        onChange={e=>uploadDeclarations(e.target.files && e.target.files[0])} disabled={declStatus==="uploading"} />
+                        onChange={e=>uploadDeclarations(e.target.files && e.target.files[0])} />
                     </label>
                     {declStatus==="error" && <div style={{...styles.errorText, marginTop:6}}>Couldn't upload that file — PDF/JPG/PNG under 10MB only.</div>}
                   </React.Fragment>
