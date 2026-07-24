@@ -10,6 +10,10 @@ const { notifyNewLead, pushToSheetsWebhook } = require("./email");
 const { scoreLead, carrierNote, referralCode, sanitizeLeadInput } = require("./leadLogic");
 
 const app = express();
+// Railway (and most PaaS hosts) sit behind a reverse proxy. Without this,
+// req.ip resolves to the proxy's IP for every request, which breaks the
+// per-IP rate limiter below (everyone shares one bucket).
+app.set("trust proxy", 1);
 app.use(express.json({ limit: "200kb" }));
 
 const allowedOrigins = (process.env.CORS_ORIGINS || "")
@@ -84,9 +88,18 @@ app.patch("/api/leads/:id/addons", rateLimit(20, 10 * 60 * 1000), (req, res) => 
 });
 
 // ---------- Producer auth ----------
+function safePinMatch(a, b) {
+  // Hash both sides to fixed-length digests first so timingSafeEqual never
+  // throws on a length mismatch (which would itself leak length info),
+  // and so the comparison time doesn't vary with how many characters match.
+  const ah = crypto.createHash("sha256").update(String(a)).digest();
+  const bh = crypto.createHash("sha256").update(String(b)).digest();
+  return crypto.timingSafeEqual(ah, bh);
+}
+
 app.post("/api/auth/pin", rateLimit(10, 10 * 60 * 1000), (req, res) => {
   const cfg = db.getConfig();
-  if (String(req.body.pin || "") === String(cfg.pin)) {
+  if (safePinMatch(req.body.pin || "", cfg.pin)) {
     return res.json({ token: auth.issueToken() });
   }
   res.status(401).json({ error: "Incorrect passcode" });
