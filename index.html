@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Get a Louisiana Home &amp; Auto Quote | Financial Assurance, LLC</title>
+<meta name="description" content="Get a real Louisiana home and auto insurance quote in about 3 minutes. Licensed local agent, no cost to you.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  html,body{margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  @keyframes confettiFall{ 0%{ transform:translateY(-20px) rotate(0deg); opacity:1;} 100%{ transform:translateY(520px) rotate(360deg); opacity:0;} }
+  @keyframes riseIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  @keyframes ticker{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+  #root{min-height:100vh;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!--
+  This page is served by the FALA backend itself and calls its own API by
+  default -- nothing to configure for a normal deploy. If you ever host this
+  HTML file somewhere separate from the backend, override the API location
+  with ?api=https://your-backend-url (see README.md).
+-->
+<script>
+  window.FALA_API_BASE = (function () {
+    var qp = new URLSearchParams(location.search).get("api");
+    if (qp) return qp;
+    // Same origin by default -- this file is served by the FALA backend
+    // itself (see server.js), so the API lives right here. Only override
+    // this (or use ?api=...) if you host the frontend separately from
+    // the backend.
+    return "";
+  })();
+</script>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback } = React;
+const API = window.FALA_API_BASE;
+
+const C = { ink:"#1C2B33", paper:"#F6F1E7", paper2:"#EDE6D6", brick:"#8A2E2E", brickDark:"#6E2323",
+  marsh:"#2F5D50", marshDark:"#234a40", amber:"#D98E2B", line:"rgba(28,43,51,0.14)", white:"#FFFDF9",
+  danger:"#B23A3A", muted:"#6b7680" };
+
+const COASTAL_PARISHES = ["Orleans","Jefferson","Plaquemines","St. Bernard","St. Tammany","Terrebonne","Lafourche","Cameron","Vermilion","Iberia","St. Mary","Calcasieu","Tangipahoa"];
+const PARISHES = ["Orleans","Jefferson","St. Tammany","Plaquemines","St. Bernard","Terrebonne","Lafourche","Tangipahoa","Livingston","Ascension","East Baton Rouge","St. Charles","St. John the Baptist","Calcasieu","Lafayette","Iberia","St. Mary","Vermilion","Cameron","Other / not listed"];
+
+const STEPS = [
+  { id:"lineType", section:0, eyebrow:"Coverage", q:"What would you like a quote for?", help:"Bundling home and auto with one carrier usually unlocks the biggest discount.", type:"options",
+    options:[{v:"home",label:"Home insurance only"},{v:"auto",label:"Auto insurance only"},{v:"bundle",label:"Home + Auto",sub:"Most popular — better pricing"}] },
+  { id:"parish", section:0, eyebrow:"Coverage", q:"Which parish is the property or garaging address in?", type:"select", options: PARISHES },
+  { id:"purchaseStatus", section:0, eyebrow:"Coverage", cond:d=>d.lineType!=="auto", q:"Are you buying a new home or insuring one you already own?", type:"options",
+    options:[{v:"new",label:"Buying / under contract now"},{v:"existing",label:"I already own it"}] },
+  { id:"closingDate", section:0, eyebrow:"Coverage", cond:d=>d.purchaseStatus==="new", q:"When does the sale close?", help:"So I can have your policy bound in time for closing.", type:"text", placeholder:"e.g. Aug 15, 2026" },
+  { id:"currentCarrierHome", section:0, eyebrow:"Coverage", cond:d=>d.purchaseStatus==="existing", q:"Who's your current home insurance carrier?", type:"text", placeholder:"Carrier name (or 'none')" },
+  { id:"expirationHome", section:0, eyebrow:"Coverage", cond:d=>d.purchaseStatus==="existing", q:"When does that policy expire or renew?", type:"text", placeholder:"e.g. October 2026" },
+  { id:"nonRenewReason", section:0, eyebrow:"Coverage", cond:d=>d.purchaseStatus==="existing", q:"Have you been non-renewed or cancelled recently?", help:"Very common in Louisiana right now — this doesn't disqualify you, it just helps me pick the right market.", type:"options",
+    options:[{v:"no",label:"No, just shopping"},{v:"yes-carrier",label:"Yes — carrier left LA or non-renewed me"},{v:"yes-claim",label:"Yes — after a claim"},{v:"yes-other",label:"Yes — other reason"}] },
+  { id:"propertyType", section:1, eyebrow:"Property", cond:d=>d.lineType!=="auto", q:"What type of property is it?", type:"options",
+    options:[{v:"primary",label:"Primary residence"},{v:"secondary",label:"Secondary / camp"},{v:"investment",label:"Investment / rental"}] },
+  { id:"yearBuilt", section:1, eyebrow:"Property", cond:d=>d.lineType!=="auto", q:"What year was it built (roughly)?", type:"text", placeholder:"e.g. 1998" },
+  { id:"sqft", section:1, eyebrow:"Property", cond:d=>d.lineType!=="auto", q:"About how many square feet?", type:"text", placeholder:"e.g. 2200" },
+  { id:"foundation", section:1, eyebrow:"Property", cond:d=>d.lineType!=="auto", q:"Foundation type?", type:"options", options:[{v:"slab",label:"Slab"},{v:"raised",label:"Raised / pier"}] },
+  { id:"roofAge", section:1, eyebrow:"Property", cond:d=>d.lineType!=="auto", q:"How old is the roof?", help:"Roof age is the single biggest factor in Louisiana home pricing and eligibility.", type:"options",
+    options:[{v:"0-5",label:"0–5 years"},{v:"6-10",label:"6–10 years"},{v:"11-15",label:"11–15 years"},{v:"16-20",label:"16–20 years"},{v:"20+",label:"20+ years / not sure"}] },
+  { id:"roofMaterial", section:1, eyebrow:"Property", cond:d=>d.lineType!=="auto", q:"Roof material?", type:"chips-single", options:["Asphalt shingle","Metal","Tile","Flat / other"] },
+  { id:"oldSystems", section:1, eyebrow:"Property", cond:d=>d.lineType!=="auto", q:"Are any of these original to the home or 15+ years old?", help:"Tap all that apply. Doesn't disqualify you — it just changes which carriers fit.", type:"chips-multi", options:["Plumbing","Electrical panel","HVAC","None of these"] },
+  { id:"coastalRisk", section:1, eyebrow:"Property", cond:d=>d.lineType!=="auto" && COASTAL_PARISHES.includes(d.parish), q:"Does the home have hurricane shutters, impact windows, or roof straps/clips?", help:"These often qualify for wind mitigation credits in coastal parishes.", type:"chips-multi", options:["Storm shutters","Impact windows","Roof straps/clips","None yet"] },
+  { id:"floodInterest", section:1, eyebrow:"Property", cond:d=>d.lineType!=="auto", q:"Do you currently carry flood insurance, or want a quote for it?", type:"options",
+    options:[{v:"have",label:"I already have a flood policy"},{v:"want",label:"I'd like a flood quote too"},{v:"no",label:"Not needed / not interested"}] },
+  { id:"discounts", section:1, eyebrow:"Property", cond:d=>d.lineType!=="auto", q:"Any of these on the property?", help:"Each one can lower your premium.", type:"chips-multi", options:["Monitored alarm","Deadbolt locks","Gated community","Backup generator","None of these"] },
+  { id:"liabilityItems", section:1, eyebrow:"Property", cond:d=>d.lineType!=="auto", q:"Do you have a pool, trampoline, or dog on the property?", help:"Just helps me flag the right liability coverage — doesn't rule anything out.", type:"chips-multi", options:["Pool","Trampoline","Dog","None of these"] },
+  { id:"vehicleCount", section:2, eyebrow:"Vehicles", cond:d=>d.lineType!=="home", q:"How many vehicles are you insuring?", type:"chips-single", options:["1","2","3","4+"] },
+  { id:"driverCount", section:2, eyebrow:"Vehicles", cond:d=>d.lineType!=="home", q:"How many drivers total on the policy?", type:"chips-single", options:["1","2","3","4+"] },
+  { id:"currentCarrierAuto", section:2, eyebrow:"Vehicles", cond:d=>d.lineType!=="home", q:"Current auto carrier?", type:"text", placeholder:"Carrier name (or 'none')" },
+  { id:"expirationAuto", section:2, eyebrow:"Vehicles", cond:d=>d.lineType!=="home", q:"When does the auto policy expire?", type:"text", placeholder:"e.g. September 2026" },
+  { id:"accidents", section:2, eyebrow:"Vehicles", cond:d=>d.lineType!=="home", q:"Any accidents or moving violations in the last 3 years?", type:"options", options:[{v:"no",label:"No, clean record"},{v:"yes",label:"Yes, one or more"}] },
+  { id:"driverExtras", section:2, eyebrow:"Vehicles", cond:d=>d.lineType!=="home", q:"Any of these apply?", type:"chips-multi", options:["Student on honor roll","Student away at college w/o car","Drives for Uber/Lyft","None of these"] },
+  { id:"name", section:3, eyebrow:"Contact", q:"Nice — last step. What's your name?", type:"text", placeholder:"Full name" },
+  { id:"phone", section:3, eyebrow:"Contact", q:"Best phone number to reach you?", type:"tel", placeholder:"(504) 555-0123" },
+  { id:"email", section:3, eyebrow:"Contact", q:"Email address?", type:"email", placeholder:"you@email.com" },
+  { id:"bestTime", section:3, eyebrow:"Contact", q:"Best time to reach you?", type:"options",
+    options:[{v:"morning",label:"Morning"},{v:"afternoon",label:"Afternoon"},{v:"evening",label:"Evening"},{v:"anytime",label:"Anytime"}] },
+];
+
+function visibleSteps(data){ return STEPS.filter(s=>!s.cond || s.cond(data)); }
+
+function computeBundleSavings(d){
+  let s=0;
+  if(d.lineType==="bundle") s+=350;
+  const discountCount=(d.discounts||[]).filter(x=>x!=="None of these").length + (d.coastalRisk||[]).filter(x=>x!=="None yet").length;
+  s += discountCount*45;
+  if(d.roofAge==="0-5"||d.roofAge==="6-10") s+=60;
+  if((d.oldSystems||[]).includes("None of these")) s+=25;
+  return s;
+}
+
+function labelize(k){ return k.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpperCase()); }
+
+function optStyle(selected){
+  return { textAlign:"left", border: "1.5px solid " + (selected?C.brick:C.line), background: selected?"#FBEFEC":C.white,
+    borderRadius:14, padding:"14px 16px", fontFamily:"inherit", fontSize:15, color:C.ink, cursor:"pointer",
+    fontWeight: selected?600:400, transition:"all .15s ease", width:"100%" };
+}
+function chipStyle(on){
+  return { border:"1.5px solid " + (on?C.marsh:C.line), background: on?C.marsh:C.white, color: on?C.white:C.ink,
+    borderRadius:999, padding:"9px 14px", fontSize:13.5, cursor:"pointer", transition:"all .15s ease", fontFamily:"inherit" };
+}
+function addOnStyle(on){
+  return { border:"1.5px solid " + (on?C.amber:C.line), background: on?"#FDF3E3":C.white, color:C.ink,
+    borderRadius:999, padding:"9px 14px", fontSize:13, cursor:"pointer", fontFamily:"inherit" };
+}
+
+const styles = {
+  screenPad:{padding:"26px 22px 100px",display:"flex",flexDirection:"column",gap:16,minHeight:"100vh"},
+  screen:{flex:1,padding:"26px 22px 100px",display:"flex",flexDirection:"column",gap:16,animation:"riseIn .28s ease"},
+  eyebrow:{fontSize:11,textTransform:"uppercase",letterSpacing:".1em",color:C.marsh,fontWeight:600},
+  h1:{fontFamily:"'Fraunces',Georgia,serif",fontWeight:600,letterSpacing:"-0.01em",lineHeight:1.15,margin:"10px 0 12px",fontSize:30},
+  helptext:{fontSize:13.5,color:"#5b6670",lineHeight:1.5},
+  trustGrid:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:20},
+  trustStat:{background:C.paper2,borderRadius:12,padding:"10px 6px"},
+  trustNum:{fontFamily:"'Fraunces',serif",fontSize:18,fontWeight:600},
+  trustLbl:{fontSize:9.5,color:"#5b6670",textTransform:"uppercase",letterSpacing:".04em",marginTop:2},
+  badgeRow:{display:"flex",gap:8,marginTop:16,flexWrap:"wrap",justifyContent:"center"},
+  badge:{fontSize:11.5,color:C.marshDark,background:"#EAF0EC",borderRadius:999,padding:"6px 10px",fontWeight:600},
+  footerNav:{position:"sticky",bottom:0,left:0,right:0,background:C.white,borderTop:`1px solid ${C.line}`,padding:"14px 22px",display:"flex",gap:10,alignItems:"center",maxWidth:480,margin:"0 auto"},
+  btnPrimaryFull:{border:"none",borderRadius:10,padding:"14px 20px",fontSize:15,fontWeight:600,fontFamily:"inherit",cursor:"pointer",background:C.brick,color:C.white,flex:1,width:"100%"},
+  btnPrimary:{border:"none",borderRadius:10,padding:"14px 20px",fontSize:15,fontWeight:600,fontFamily:"inherit",cursor:"pointer",background:C.brick,color:C.white,flex:1},
+  btnGhost:{border:"none",borderRadius:10,padding:"14px 10px",fontSize:15,fontWeight:600,fontFamily:"inherit",cursor:"pointer",background:"transparent",color:"#6b7680"},
+  producerLink:{textAlign:"center",fontSize:11,color:"#9aa3ab",padding:"10px 0 4px"},
+  resumeBanner:{background:C.paper2,borderRadius:12,padding:14,marginBottom:4},
+  miniBtnDark:{fontSize:12,padding:"8px 12px",borderRadius:8,border:"none",background:C.brick,color:C.white,cursor:"pointer",fontFamily:"inherit",fontWeight:600},
+  miniBtnGhost:{fontSize:12,padding:"8px 12px",borderRadius:8,border:`1px solid ${C.line}`,background:"transparent",cursor:"pointer",fontFamily:"inherit"},
+  topbar:{padding:"18px 20px 14px",borderBottom:`1px solid ${C.line}`,background:C.white},
+  brandRow:{display:"flex",alignItems:"center",gap:10,marginBottom:12},
+  brandMark:{width:34,height:34,borderRadius:8,background:C.brick,color:C.white,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Fraunces',serif",fontWeight:700,fontSize:16,flexShrink:0},
+  brandName:{fontSize:13,fontWeight:600,letterSpacing:"0.02em"},
+  brandTag:{fontSize:11,color:C.marsh,fontStyle:"italic"},
+  gauge:{display:"flex",gap:4},
+  gaugeLabelRow:{display:"flex",justifyContent:"space-between",marginTop:6,fontSize:10.5,textTransform:"uppercase",letterSpacing:".08em",color:"#6b7680"},
+  savingsMeter:{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#EAF0EC",color:C.marshDark,padding:"10px 22px",fontSize:12.5,fontWeight:600,animation:"ticker .25s ease"},
+  question:{fontSize:22,fontFamily:"'Fraunces',Georgia,serif",fontWeight:600,lineHeight:1.15},
+  optionsWrap:{display:"flex",flexDirection:"column",gap:10,marginTop:4},
+  optSub:{display:"block",fontSize:12,fontWeight:400,color:"#6b7680",marginTop:2},
+  chipsWrap:{display:"flex",flexWrap:"wrap",gap:8,marginTop:4},
+  input:{width:"100%",padding:"13px 14px",borderRadius:10,border:`1.5px solid ${C.line}`,fontSize:15,fontFamily:"inherit",background:C.white,color:C.ink,boxSizing:"border-box"},
+  errorText:{color:C.danger,fontSize:12.5,fontWeight:600,marginTop:-6},
+  fieldLabel:{display:"flex",flexDirection:"column",gap:6,fontSize:12.5,fontWeight:600,color:"#4b5560"},
+  row2:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
+  confirmRow:{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap",marginTop:16},
+  referralCard:{border:`1.5px dashed ${C.amber}`,borderRadius:14,padding:16,marginTop:22,background:"#FFFDF6"},
+  referralTitle:{fontFamily:"'Fraunces',serif",fontSize:19,fontWeight:600,marginTop:4},
+  referralLinkRow:{display:"flex",gap:8,marginTop:10,alignItems:"center"},
+  referralLinkBox:{flex:1,fontSize:11.5,color:"#5b6670",background:C.paper2,borderRadius:8,padding:"8px 10px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},
+  reviewCard:{border:`1.5px solid ${C.line}`,borderRadius:14,padding:16,marginTop:14},
+  addOnCard:{marginTop:14},
+  pinBox:{maxWidth:280,margin:"60px auto",textAlign:"center"},
+  dash:{padding:20},
+  dashHeader:{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:8},
+  statGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14},
+  stat:{background:C.paper2,borderRadius:12,padding:14},
+  statNum:{fontFamily:"'Fraunces',serif",fontSize:26,fontWeight:600},
+  statLbl:{fontSize:11,color:"#5b6670",textTransform:"uppercase",letterSpacing:".06em"},
+  filterRow:{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"},
+  searchInput:{flex:2,minWidth:160,padding:"9px 12px",borderRadius:8,border:`1.5px solid ${C.line}`,fontSize:13,fontFamily:"inherit"},
+  filterSelect:{flex:1,minWidth:110,padding:"9px 8px",borderRadius:8,border:`1.5px solid ${C.line}`,fontSize:12.5,fontFamily:"inherit"},
+  leadCard:{border:`1.5px solid ${C.line}`,borderRadius:12,padding:14,marginBottom:10,background:C.white},
+  leadTop:{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8},
+  leadName:{fontWeight:700,fontSize:15},
+  leadMeta:{fontSize:12,color:"#6b7680",marginTop:2},
+  leadTags:{display:"flex",flexWrap:"wrap",gap:6,marginTop:8},
+  leadDetail:{fontSize:13,color:C.ink,marginTop:10,lineHeight:1.7,borderTop:`1px dashed ${C.line}`,paddingTop:10},
+  noteArea:{width:"100%",marginTop:8,padding:8,borderRadius:8,border:`1.5px solid ${C.line}`,fontFamily:"inherit",fontSize:12.5,minHeight:50,boxSizing:"border-box"},
+  leadActions:{display:"flex",gap:8,marginTop:10,flexWrap:"wrap"},
+  statusSelect:{fontSize:12,padding:"6px 8px",borderRadius:8},
+  miniBtn:{fontSize:12,padding:"7px 10px",borderRadius:8,border:`1px solid ${C.line}`,background:C.white,cursor:"pointer",fontFamily:"inherit"},
+  miniBtnLink:{fontSize:12,padding:"7px 10px",borderRadius:8,border:`1px solid ${C.line}`,background:C.white,cursor:"pointer",fontFamily:"inherit",textDecoration:"none",color:C.ink},
+  miniBtnDanger:{fontSize:12,padding:"7px 10px",borderRadius:8,border:`1px solid ${C.danger}`,color:C.danger,background:C.white,cursor:"pointer",fontFamily:"inherit"},
+  empty:{textAlign:"center",color:"#8b95a0",padding:"40px 20px",fontSize:14},
+  appShell:{maxWidth:480,margin:"0 auto",minHeight:"100vh",background:C.white,boxShadow:"0 0 40px rgba(28,43,51,0.06)",position:"relative",fontFamily:"'IBM Plex Sans',system-ui,sans-serif",color:C.ink,backgroundColor:C.paper},
+};
+
+// ---------- tiny API helper ----------
+async function api(path, opts={}){
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { "Content-Type": "application/json", ...(opts.headers||{}) },
+  });
+  if(!res.ok){
+    let msg = "Request failed";
+    try{ msg = (await res.json()).error || msg; }catch(e){}
+    throw new Error(msg);
+  }
+  const ct = res.headers.get("content-type")||"";
+  return ct.includes("application/json") ? res.json() : res.text();
+}
+function adminApi(path, opts={}){
+  const token = localStorage.getItem("fala-admin-token") || "";
+  return api("/api/admin"+path, { ...opts, headers: { Authorization: "Bearer "+token, ...(opts.headers||{}) } });
+}
+
+const DRAFT_KEY = "fala-quote-draft-v1";
+
+function App(){
+  const [screen, setScreen] = useState("intro");
+  const [stepIndex, setStepIndex] = useState(0);
+  const [data, setData] = useState({});
+  const [stepError, setStepError] = useState(null);
+  const [config, setConfig] = useState(null);
+  const [loaded, setLoaded] = useState(false);
+  const [draft, setDraft] = useState(null);
+  const [hasDraft, setHasDraft] = useState(false);
+  const [heroFraming] = useState("gain"); // 'gain' | 'loss' — swap for A/B testing the headline
+  const [confettiEnabled] = useState(true);
+  const [lastLead, setLastLead] = useState(null);
+  const [addOns, setAddOns] = useState([]);
+  const [referralCopied, setReferralCopied] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+
+  // producer dashboard state
+  const [pinValue, setPinValue] = useState("");
+  const [pinError, setPinError] = useState(false);
+  const [leads, setLeads] = useState([]);
+  const [search, setSearch] = useState("");
+  const [filterTag, setFilterTag] = useState("all");
+  const [sortBy, setSortBy] = useState("date");
+  const [openDetail, setOpenDetail] = useState({});
+  const [configDraft, setConfigDraft] = useState(null);
+  const [settingsSaved, setSettingsSaved] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const cfg = await api("/api/config/public");
+        setConfig(cfg);
+      } catch (e) {
+        setConfig({ agentName:"Noah Bethay", agentPhone:"(504) 555-0100", avgSavings:847, rating:4.9, reviewCount:312, carrierCount:20, yearsInBusiness:69, reviewLink:"#", referralBonus:25 });
+      }
+      try {
+        const raw = localStorage.getItem(DRAFT_KEY);
+        if (raw) { const d = JSON.parse(raw); setDraft(d); setHasDraft(true); }
+      } catch (e) {}
+      setLoaded(true);
+    })();
+  }, []);
+
+  function saveDraft(d){
+    try{ if(d) localStorage.setItem(DRAFT_KEY, JSON.stringify(d)); else localStorage.removeItem(DRAFT_KEY); }catch(e){}
+  }
+
+  function clickStart(){ setScreen("quiz"); setStepIndex(0); setData({}); setHasDraft(false); setStepError(null); saveDraft(null); }
+  function startFresh(){ clickStart(); }
+  function resumeDraft(){ if(!draft) return; setScreen("quiz"); setData(draft.data||{}); setStepIndex(draft.stepIndex||0); setHasDraft(false); }
+  function goIntro(e){ if(e&&e.preventDefault) e.preventDefault(); setScreen("intro"); }
+  function goPin(e){ if(e&&e.preventDefault) e.preventDefault(); setScreen("dash-pin"); setPinValue(""); setPinError(false); }
+
+  function setAnswer(id, val){
+    const next = { ...data, [id]: val };
+    setData(next); setStepError(null);
+    saveDraft({ data: next, stepIndex });
+  }
+  function toggleMulti(id, v){
+    let arr = data[id] || [];
+    const isNone = v.startsWith("None");
+    if (isNone) arr = arr.includes(v) ? [] : [v];
+    else { arr = arr.filter(x=>!x.startsWith("None")); arr = arr.includes(v) ? arr.filter(x=>x!==v) : [...arr, v]; }
+    setAnswer(id, arr);
+  }
+
+  function currentStepDef(){ return visibleSteps(data)[stepIndex]; }
+
+  async function goNextClick(){
+    const step = currentStepDef();
+    if(!step) return;
+    const val = data[step.id];
+    const requiresValue = ["text","tel","email","select"].includes(step.type);
+    if(requiresValue){
+      const trimmed = (val||"").toString().trim();
+      if(!trimmed){ setStepError("This field is required."); return; }
+      if(step.type==="email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)){ setStepError("Enter a valid email address."); return; }
+      if(step.type==="tel" && trimmed.replace(/\D/g,"").length<10){ setStepError("Enter a 10-digit phone number."); return; }
+    }
+    const vis = visibleSteps(data);
+    const nextIndex = stepIndex + 1;
+    if(nextIndex >= vis.length){ await finishQuiz(); }
+    else{ setStepIndex(nextIndex); setStepError(null); saveDraft({ data, stepIndex: nextIndex }); }
+  }
+  function goBack(){ if(stepIndex>0){ const i = stepIndex-1; setStepIndex(i); setStepError(null); saveDraft({ data, stepIndex: i }); } }
+
+  async function finishQuiz(){
+    setSubmitting(true); setSubmitError(null);
+    try{
+      const lead = await api("/api/leads", { method:"POST", body: JSON.stringify(data) });
+      saveDraft(null);
+      setLastLead(lead); setAddOns([]); setScreen("done");
+    }catch(e){
+      setSubmitError(e.message || "Something went wrong submitting your quote. Please try again or call/text us directly.");
+    }finally{
+      setSubmitting(false);
+    }
+  }
+
+  async function toggleAddOn(v){
+    let arr = addOns || [];
+    arr = arr.includes(v) ? arr.filter(x=>x!==v) : [...arr, v];
+    setAddOns(arr);
+    if(lastLead){
+      try{ await api(`/api/leads/${lastLead.id}/addons`, { method:"PATCH", body: JSON.stringify({ addOns: arr }) }); }catch(e){}
+    }
+  }
+  function copyReferral(){
+    const link = "getfala.com/quote?ref=" + (lastLead ? lastLead.refCode : "FALA");
+    if(navigator.clipboard) navigator.clipboard.writeText(link).catch(()=>{});
+    setReferralCopied(true);
+    setTimeout(()=>setReferralCopied(false), 1800);
+  }
+  function restart(){ setScreen("intro"); setData({}); setAddOns([]); }
+
+  // ---------- producer dashboard ----------
+  function onPinKeyDown(e){ if(e.key==="Enter") submitPin(); }
+  async function submitPin(){
+    try{
+      const { token } = await api("/api/auth/pin", { method:"POST", body: JSON.stringify({ pin: pinValue }) });
+      localStorage.setItem("fala-admin-token", token);
+      setPinError(false); setPinValue("");
+      const ls = await adminApi("/leads");
+      setLeads(ls);
+      setScreen("dash");
+    }catch(e){
+      setPinError(true);
+    }
+  }
+  async function refreshLeads(){ try{ setLeads(await adminApi("/leads")); }catch(e){} }
+  async function updateStatus(id, status){ const updated = await adminApi(`/leads/${id}`, { method:"PATCH", body: JSON.stringify({ status }) }); setLeads(ls=>ls.map(l=>l.id===id?updated:l)); }
+  async function updateNote(id, agentNote){ const updated = await adminApi(`/leads/${id}`, { method:"PATCH", body: JSON.stringify({ agentNote }) }); setLeads(ls=>ls.map(l=>l.id===id?updated:l)); }
+  async function deleteLead(id){
+    if(!confirm("Delete this lead? This can't be undone.")) return;
+    await adminApi(`/leads/${id}`, { method:"DELETE" });
+    setLeads(ls=>ls.filter(l=>l.id!==id));
+  }
+  function toggleDetail(id){ setOpenDetail(o=>({ ...o, [id]: !o[id] })); }
+  function exportCsv(){
+    const cols = ["createdAt","status","name","phone","email","lineType","parish","score","tags","note","agentNote"];
+    const rows = [cols.join(",")].concat(leads.map(l=>cols.map(c=>{
+      let v=l[c]; if(Array.isArray(v)) v=v.join("; ");
+      v=(v===undefined||v===null)?"":String(v).replace(/"/g,'""'); return `"${v}"`;
+    }).join(",")));
+    const blob = new Blob([rows.join("\n")], {type:"text/csv"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download="fala-leads.csv"; a.click(); URL.revokeObjectURL(url);
+  }
+  function openSettings(){ setConfigDraft({ ...config, ...(configFullCache.current||{}) }); setScreen("settings"); setSettingsSaved(false); loadFullConfig(); }
+  const configFullCache = useRef(null);
+  async function loadFullConfig(){ try{ const full = await adminApi("/config"); configFullCache.current = full; setConfigDraft(full); }catch(e){} }
+  function cancelSettings(){ setScreen("dash"); }
+  function onCfg(key){ return (e)=>{ setConfigDraft(cd=>({ ...cd, [key]: e.target.value })); }; }
+  async function saveSettings(){
+    const saved = await adminApi("/config", { method:"PUT", body: JSON.stringify(configDraft) });
+    const { pin, agentEmail, ...pub } = saved;
+    setConfig(pub);
+    setScreen("dash"); setSettingsSaved(true);
+  }
+
+  if(!loaded || !config){
+    return <div style={styles.appShell}><div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:"#8b95a0",fontFamily:"'IBM Plex Sans',sans-serif",fontSize:13}}>Loading…</div></div>;
+  }
+
+  const isIntro = screen==="intro", isQuiz = screen==="quiz", isDone = screen==="done",
+    isPin = screen==="dash-pin", isDash = screen==="dash", isSettings = screen==="settings";
+
+  const heroHeadline = heroFraming==="loss" ? "Find out if you're overpaying for home & auto insurance." : "Get a real Louisiana home & auto quote.";
+  const heroSub = heroFraming==="loss"
+    ? "Takes about 3 minutes. Most Louisiana homeowners haven't shopped their policy in years — let's see what you're leaving on the table."
+    : "Takes about 3 minutes. I shop your info across multiple Louisiana carriers — you don't have to guess which one will actually write your risk.";
+  const heroCta = heroFraming==="loss" ? "Check my rate" : "Start my quote";
+
+  return (
+    <div style={styles.appShell}>
+
+      {isIntro && (
+        <React.Fragment>
+          <div style={styles.screenPad}>
+            {hasDraft && (
+              <div style={styles.resumeBanner}>
+                <div style={{fontSize:13,fontWeight:600}}>Welcome back — you left off partway through.</div>
+                <div style={{display:"flex",gap:8,marginTop:8}}>
+                  <button style={styles.miniBtnDark} onClick={resumeDraft}>Continue quote</button>
+                  <button style={styles.miniBtnGhost} onClick={startFresh}>Start over</button>
+                </div>
+              </div>
+            )}
+            <div style={{textAlign:"center",marginTop:"auto",marginBottom:"auto"}}>
+              <div style={{width:76,height:76,margin:"0 auto 14px",borderRadius:"50%",background:C.paper2,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Fraunces',serif",fontSize:22,color:C.marsh,fontWeight:600}}>FA</div>
+              <div style={styles.eyebrow}>Financial Assurance, LLC · Louisiana</div>
+              <h1 style={styles.h1}>{heroHeadline}</h1>
+              <p style={{...styles.helptext,fontSize:14.5,maxWidth:360,marginLeft:"auto",marginRight:"auto"}}>{heroSub}</p>
+
+              <div style={styles.trustGrid}>
+                <div style={styles.trustStat}><div style={styles.trustNum}>{config.rating}★</div><div style={styles.trustLbl}>{config.reviewCount} reviews</div></div>
+                <div style={styles.trustStat}><div style={styles.trustNum}>${config.avgSavings}</div><div style={styles.trustLbl}>avg. saved/yr</div></div>
+                <div style={styles.trustStat}><div style={styles.trustNum}>{config.carrierCount}+</div><div style={styles.trustLbl}>carriers compared</div></div>
+                <div style={styles.trustStat}><div style={styles.trustNum}>{config.yearsInBusiness}</div><div style={styles.trustLbl}>yrs in Louisiana</div></div>
+              </div>
+
+              <div style={styles.badgeRow}>
+                <span style={styles.badge}>Licensed LA agent</span>
+                <span style={styles.badge}>No cost to you</span>
+                <span style={styles.badge}>3-minute form</span>
+              </div>
+            </div>
+          </div>
+          <div style={styles.footerNav}>
+            <button style={styles.btnPrimaryFull} onClick={clickStart}>{heroCta} →</button>
+          </div>
+          <div style={{textAlign:"center",fontSize:12,padding:"6px 0 4px"}}><a href="./ai-assistant.html" style={{color:"#2F5D50",fontWeight:600}}>Prefer to chat? Try our AI assistant →</a></div>
+          <div style={styles.producerLink}><a href="#" style={{color:"#9aa3ab"}} onClick={goPin}>Producer login</a></div>
+        </React.Fragment>
+      )}
+
+      {isQuiz && (() => {
+        const vis = visibleSteps(data);
+        const step = vis[stepIndex] || vis[vis.length-1];
+        const sectionNames = ["Coverage","Property","Vehicles","Contact"];
+        const totalSections = 4;
+        const gaugeSegs = Array.from({length:totalSections}, (_,i)=>({ style:{flex:1,height:6,borderRadius:4,background:i<=step.section?`linear-gradient(90deg, ${C.amber}, ${C.brick})`:C.line,transition:"background .3s ease"} }));
+        const showSavingsMeter = step.section >= 1 && computeBundleSavings(data) > 0;
+        const liveSavings = computeBundleSavings(data);
+        const val = data[step.id];
+
+        return (
+          <React.Fragment>
+            <div style={styles.topbar}>
+              <div style={styles.brandRow}>
+                <div style={styles.brandMark}>FA</div>
+                <div><div style={styles.brandName}>Financial Assurance, LLC</div><div style={styles.brandTag}>Insurance · Risk Solutions</div></div>
+              </div>
+              <div style={styles.gauge}>
+                {gaugeSegs.map((seg,i)=><div key={i} style={seg.style}></div>)}
+              </div>
+              <div style={styles.gaugeLabelRow}><span>{sectionNames[step.section]}</span><span>{stepIndex+1} / {vis.length}</span></div>
+            </div>
+
+            {showSavingsMeter && (
+              <div style={styles.savingsMeter}>
+                <span>💰 Estimated savings so far</span><strong>${liveSavings}/yr</strong>
+              </div>
+            )}
+
+            <div style={styles.screen} key={step.id}>
+              <div style={styles.eyebrow}>{step.eyebrow}</div>
+              <div style={styles.question}>{step.q}</div>
+              {step.help && <div style={styles.helptext}>{step.help}</div>}
+
+              {step.type==="options" && (
+                <div style={styles.optionsWrap}>
+                  {step.options.map(o=>(
+                    <button key={o.v} style={optStyle(val===o.v)} onClick={()=>{ setAnswer(step.id,o.v); goNextClick(); }}>
+                      {o.label}{o.sub && <span style={styles.optSub}>{o.sub}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {step.type==="select" && (
+                <select style={styles.input} value={val||""} onChange={e=>setAnswer(step.id,e.target.value)}>
+                  <option value="" disabled>Choose a parish…</option>
+                  {step.options.map(o=><option key={o} value={o}>{o}</option>)}
+                </select>
+              )}
+
+              {step.type==="chips-single" && (
+                <div style={styles.chipsWrap}>
+                  {step.options.map(o=>(
+                    <button key={o} style={chipStyle(val===o)} onClick={()=>{ setAnswer(step.id,o); goNextClick(); }}>{o}</button>
+                  ))}
+                </div>
+              )}
+
+              {step.type==="chips-multi" && (
+                <div style={styles.chipsWrap}>
+                  {step.options.map(o=>(
+                    <button key={o} style={chipStyle((val||[]).includes(o))} onClick={()=>toggleMulti(step.id,o)}>{o}</button>
+                  ))}
+                </div>
+              )}
+
+              {["text","tel","email"].includes(step.type) && (
+                <input type={step.type} style={styles.input} placeholder={step.placeholder||""} value={val||""}
+                  onChange={e=>setAnswer(step.id,e.target.value)}
+                  onKeyDown={e=>{ if(e.key==="Enter") goNextClick(); }} />
+              )}
+
+              {stepError && <div style={styles.errorText}>{stepError}</div>}
+            </div>
+
+            <div style={styles.footerNav}>
+              <button style={styles.btnGhost} onClick={goBack}>{stepIndex===0 ? "" : "← Back"}</button>
+              <button style={styles.btnPrimary} onClick={goNextClick} disabled={submitting}>{submitting ? "Submitting…" : "Continue"}</button>
+            </div>
+            {submitError && <div style={{...styles.errorText, textAlign:"center", padding:"0 22px 14px"}}>{submitError}</div>}
+          </React.Fragment>
+        );
+      })()}
+
+      {isDone && (() => {
+        const lead = lastLead || {};
+        const leadFirstName = (lead.name||"").split(" ")[0] || "there";
+        const bestTimeLabel = lead.bestTime==="anytime" ? "phone or email" : (lead.bestTime||"soon");
+        const referralLink = "getfala.com/quote?ref=" + (lead.refCode || "FALA");
+        const addOnList = ["Flood","Umbrella","Life","Motorcycle/Boat","Renters for a tenant","Business"];
+        const confetti = confettiEnabled ? Array.from({length:26}).map((_,i)=>{
+          const colors=[C.brick,C.marsh,C.amber];
+          const left = Math.round(Math.random()*94);
+          const delay = (Math.random()*0.5).toFixed(2);
+          const dur = (1.6+Math.random()*1.2).toFixed(2);
+          const color = colors[i%3];
+          return { style:{position:"absolute",top:"-4%",left:left+"%",width:8,height:12,background:color,borderRadius:2,animation:`confettiFall ${dur}s ease-in ${delay}s forwards`} };
+        }) : [];
+
+        return (
+          <React.Fragment>
+            {confettiEnabled && (
+              <div style={{position:"fixed",inset:0,pointerEvents:"none",overflow:"hidden",maxWidth:480,margin:"0 auto",zIndex:50}}>
+                {confetti.map((p,i)=><div key={i} style={p.style}></div>)}
+              </div>
+            )}
+            <div style={{...styles.screen, paddingTop:44}}>
+              <div style={{textAlign:"center"}}>
+                <div style={{fontSize:40,marginBottom:6}}>✅</div>
+                <h1 style={{...styles.h1, fontSize:26}}>Thanks, {leadFirstName}.</h1>
+                <p style={{...styles.helptext, fontSize:14.5, marginTop:10}}>
+                  Got everything I need. I'll compare Louisiana carriers for your situation and reach out by {bestTimeLabel} — usually within one business day.
+                </p>
+                <div style={styles.confirmRow}>
+                  <span style={styles.badge}>📱 Text confirmation sent</span>
+                  <span style={styles.badge}>✉️ Email confirmation sent</span>
+                </div>
+                <p style={{...styles.helptext, marginTop:14}}>
+                  Need something sooner? Call or text {config.agentName} directly at <strong>{config.agentPhone}</strong>.
+                </p>
+              </div>
+
+              <div style={styles.referralCard}>
+                <div style={styles.eyebrow}>Friends &amp; family</div>
+                <div style={styles.referralTitle}>Give ${config.referralBonus}, get ${config.referralBonus}</div>
+                <p style={{...styles.helptext, fontSize:13}}>Share your link — when a friend gets a quote, you both get a ${config.referralBonus} gift card.</p>
+                <div style={styles.referralLinkRow}>
+                  <div style={styles.referralLinkBox}>{referralLink}</div>
+                  <button style={styles.miniBtnDark} onClick={copyReferral}>{referralCopied ? "Copied!" : "Copy link"}</button>
+                </div>
+              </div>
+
+              <div style={styles.addOnCard}>
+                <div style={styles.eyebrow}>Want a quote on these too?</div>
+                <div style={styles.chipsWrap}>
+                  {addOnList.map(a=>(
+                    <button key={a} style={addOnStyle(addOns.includes(a))} onClick={()=>toggleAddOn(a)}>{a}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div style={styles.footerNav}>
+              <button style={styles.btnPrimaryFull} onClick={restart}>Start another quote</button>
+            </div>
+          </React.Fragment>
+        );
+      })()}
+
+      {isPin && (
+        <div style={styles.pinBox}>
+          <div style={styles.eyebrow}>Producer access</div>
+          <h2 style={{...styles.h1, margin:"8px 0 16px", fontSize:20}}>Enter passcode</h2>
+          <input type="tel" maxLength={8} style={{...styles.input, textAlign:"center", letterSpacing:6, fontSize:22, border:`1.5px solid ${pinError?C.danger:C.line}`}}
+            placeholder="••••" value={pinValue} onChange={e=>{ setPinValue(e.target.value); setPinError(false); }} onKeyDown={onPinKeyDown} />
+          <div style={{marginTop:14}}><button style={styles.btnPrimaryFull} onClick={submitPin}>Enter</button></div>
+          <div style={{marginTop:14}}><a href="#" style={{fontSize:12,color:"#9aa3ab"}} onClick={goIntro}>← Back to quote form</a></div>
+        </div>
+      )}
+
+      {isDash && (() => {
+        const today = new Date().toDateString();
+        const weekAgo = Date.now() - 7*24*60*60*1000;
+        const totals = {
+          total: leads.length,
+          today: leads.filter(l=>new Date(l.createdAt).toDateString()===today).length,
+          week: leads.filter(l=>new Date(l.createdAt).getTime()>=weekAgo).length,
+          bundle: leads.filter(l=>l.tags && l.tags.includes("bundle")).length,
+        };
+        const filterOptions = [
+          {v:"all",label:"All leads"},{v:"hot",label:"Hot"},{v:"bundle",label:"Bundle"},
+          {v:"hard-to-place",label:"Hard to place"},{v:"non-renewed",label:"Non-renewed"},{v:"coastal",label:"Coastal"}
+        ];
+        const statusOptions = ["New","Contacted","Quoted","Bound","Lost"];
+        let filtered = leads.filter(l=>{
+          if(filterTag!=="all" && !(l.tags||[]).includes(filterTag)) return false;
+          if(search){
+            const hay = [l.name,l.phone,l.email,l.parish].join(" ").toLowerCase();
+            if(!hay.includes(search.toLowerCase())) return false;
+          }
+          return true;
+        });
+        filtered = filtered.slice().sort((a,b)=> sortBy==="score" ? (b.score-a.score) : (new Date(b.createdAt)-new Date(a.createdAt)));
+        const tagMeta = { hot:["Hot","hot"], bundle:["Bundle","bundle"], "hard-to-place":["Hard to place","hard"], "non-renewed":["Non-renewed","hard"], "new-purchase":["New purchase","hot"], coastal:["Coastal","bundle"], "flood-opportunity":["Flood opp.","new"] };
+        const tagColor = { hot:{background:"#FBEFEC",color:C.brick}, bundle:{background:"#EAF0EC",color:C.marshDark}, hard:{background:"#FDF3E3",color:"#8a5a13"}, new:{background:"#EAF2FB",color:"#2c5a8c"} };
+        const tagBase = {fontSize:10.5,fontWeight:700,padding:"3px 8px",borderRadius:6,textTransform:"uppercase",letterSpacing:".03em"};
+        const emptyMessage = leads.length ? "No leads match your search or filter." : "No leads yet — share your quote link to start filling this up.";
+        const skip = ["id","createdAt","status","score","tags","note","agentNote","refCode","addOns"];
+
+        return (
+          <div style={styles.dash}>
+            <div style={styles.dashHeader}>
+              <h2 style={{...styles.h1, fontSize:20}}>Your leads</h2>
+              <div style={{display:"flex",gap:8}}>
+                <button style={styles.miniBtn} onClick={openSettings}>Settings</button>
+                <button style={styles.miniBtn} onClick={exportCsv}>Export CSV</button>
+                <button style={styles.miniBtn} onClick={refreshLeads}>Refresh</button>
+                <button style={styles.miniBtn} onClick={goIntro}>Exit</button>
+              </div>
+            </div>
+
+            <div style={styles.statGrid}>
+              <div style={styles.stat}><div style={styles.statNum}>{totals.today}</div><div style={styles.statLbl}>Today</div></div>
+              <div style={styles.stat}><div style={styles.statNum}>{totals.week}</div><div style={styles.statLbl}>This week</div></div>
+              <div style={styles.stat}><div style={styles.statNum}>{totals.total}</div><div style={styles.statLbl}>All time</div></div>
+              <div style={styles.stat}><div style={styles.statNum}>{totals.bundle}</div><div style={styles.statLbl}>Bundle opps</div></div>
+            </div>
+
+            <div style={styles.filterRow}>
+              <input type="text" placeholder="Search name, phone, parish…" style={styles.searchInput} value={search} onChange={e=>setSearch(e.target.value)} />
+              <select style={styles.filterSelect} value={filterTag} onChange={e=>setFilterTag(e.target.value)}>
+                {filterOptions.map(f=><option key={f.v} value={f.v}>{f.label}</option>)}
+              </select>
+              <select style={styles.filterSelect} value={sortBy} onChange={e=>setSortBy(e.target.value)}>
+                <option value="date">Newest first</option>
+                <option value="score">Highest score</option>
+              </select>
+            </div>
+
+            {filtered.length>0 ? filtered.map(l=>{
+              const detailRows = Object.entries(l).filter(([k])=>!skip.includes(k)).map(([k,v])=>({ k:labelize(k), v: Array.isArray(v)?v.join(", "):(v||"—") }));
+              const tagsView = (l.tags||[]).map(t=>{ const [label,cls]=tagMeta[t]||[t,"new"]; return { label, style:{...tagBase, ...(tagColor[cls]||tagColor.new)} }; });
+              const open = !!openDetail[l.id];
+              return (
+                <div key={l.id} style={styles.leadCard}>
+                  <div style={styles.leadTop}>
+                    <div>
+                      <div style={styles.leadName}>{l.name||"(no name)"}</div>
+                      <div style={styles.leadMeta}>{new Date(l.createdAt).toLocaleString()} · {l.lineType||""}</div>
+                    </div>
+                    <select style={styles.statusSelect} value={l.status} onChange={e=>updateStatus(l.id, e.target.value)}>
+                      {statusOptions.map(st=><option key={st} value={st}>{st}</option>)}
+                    </select>
+                  </div>
+                  <div style={styles.leadTags}>
+                    {tagsView.map((t,i)=><span key={i} style={t.style}>{t.label}</span>)}
+                  </div>
+                  {l.note && <div style={{...styles.helptext, marginTop:8, fontSize:12.5}}>📝 {l.note}</div>}
+
+                  {open && (
+                    <div style={styles.leadDetail}>
+                      {detailRows.map((row,i)=><div key={i}><strong>{row.k}:</strong> {row.v}</div>)}
+                      <textarea placeholder="Add a private follow-up note…" style={styles.noteArea} defaultValue={l.agentNote}
+                        onBlur={e=>updateNote(l.id, e.target.value)} />
+                    </div>
+                  )}
+
+                  <div style={styles.leadActions}>
+                    <button style={styles.miniBtn} onClick={()=>toggleDetail(l.id)}>{open ? "Hide details" : "Details"}</button>
+                    <a style={styles.miniBtnLink} href={"tel:"+(l.phone||"").replace(/[^0-9+]/g,"")}>Call</a>
+                    <a style={styles.miniBtnLink} href={"mailto:"+(l.email||"")}>Email</a>
+                    <button style={styles.miniBtnDanger} onClick={()=>deleteLead(l.id)}>Delete</button>
+                  </div>
+                </div>
+              );
+            }) : <div style={styles.empty}>{emptyMessage}</div>}
+          </div>
+        );
+      })()}
+
+      {isSettings && configDraft && (
+        <React.Fragment>
+          <div style={styles.screen}>
+            <div style={styles.eyebrow}>Producer settings</div>
+            <div style={styles.question}>Agency &amp; business details</div>
+            <label style={styles.fieldLabel}>Agent name
+              <input type="text" style={styles.input} value={configDraft.agentName||""} onChange={onCfg('agentName')} />
+            </label>
+            <label style={styles.fieldLabel}>Direct phone
+              <input type="text" style={styles.input} value={configDraft.agentPhone||""} onChange={onCfg('agentPhone')} />
+            </label>
+            <label style={styles.fieldLabel}>Email
+              <input type="text" style={styles.input} value={configDraft.agentEmail||""} onChange={onCfg('agentEmail')} />
+            </label>
+            <div style={styles.row2}>
+              <label style={styles.fieldLabel}>Avg. annual savings ($)
+                <input type="text" style={styles.input} value={configDraft.avgSavings||""} onChange={onCfg('avgSavings')} />
+              </label>
+              <label style={styles.fieldLabel}>Referral bonus ($)
+                <input type="text" style={styles.input} value={configDraft.referralBonus||""} onChange={onCfg('referralBonus')} />
+              </label>
+            </div>
+            <div style={styles.row2}>
+              <label style={styles.fieldLabel}>Google rating
+                <input type="text" style={styles.input} value={configDraft.rating||""} onChange={onCfg('rating')} />
+              </label>
+              <label style={styles.fieldLabel}>Review count
+                <input type="text" style={styles.input} value={configDraft.reviewCount||""} onChange={onCfg('reviewCount')} />
+              </label>
+            </div>
+            <label style={styles.fieldLabel}>Google review link
+              <input type="text" style={styles.input} value={configDraft.reviewLink||""} onChange={onCfg('reviewLink')} />
+            </label>
+            <label style={styles.fieldLabel}>Dashboard passcode <span style={{fontWeight:400,color:"#9aa3ab"}}>(leave as-is to keep current)</span>
+              <input type="text" style={styles.input} placeholder="••••" onChange={onCfg('pin')} />
+            </label>
+          </div>
+          <div style={styles.footerNav}>
+            <button style={styles.btnGhost} onClick={cancelSettings}>Cancel</button>
+            <button style={styles.btnPrimary} onClick={saveSettings}>Save changes</button>
+          </div>
+        </React.Fragment>
+      )}
+
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
