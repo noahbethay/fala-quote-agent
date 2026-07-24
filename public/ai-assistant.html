@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ask a question | Financial Assurance, LLC</title>
+<meta name="description" content="Chat about Louisiana home and auto insurance, or get connected to a real quote in under a minute.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  html,body{margin:0;padding:0;-webkit-font-smoothing:antialiased;}
+  @keyframes riseIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+  @keyframes bounce{ 0%,80%,100%{transform:translateY(0);} 40%{transform:translateY(-4px);} }
+  #root{min-height:100vh;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<!--
+  This page is served by the FALA backend itself and calls its own API by
+  default. This assistant is a free, rule-based FAQ + lead-capture flow —
+  no external AI API, no per-message cost. See README.md for details.
+-->
+<script>
+  window.FALA_API_BASE = (function () {
+    var qp = new URLSearchParams(location.search).get("api");
+    if (qp) return qp;
+    return "";
+  })();
+</script>
+
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef } = React;
+const API = window.FALA_API_BASE;
+
+const C = { ink:"#1C2B33", paper:"#F6F1E7", paper2:"#EDE6D6", brick:"#8A2E2E", brickDark:"#6E2323",
+  marsh:"#2F5D50", marshDark:"#234a40", amber:"#D98E2B", line:"rgba(28,43,51,0.14)", white:"#FFFDF9",
+  danger:"#B23A3A", muted:"#6b7680" };
+
+const PARISHES = ["Orleans","Jefferson","St. Tammany","Plaquemines","St. Bernard","Terrebonne","Lafourche","Tangipahoa","Livingston","Ascension","East Baton Rouge","St. Charles","St. John the Baptist","Calcasieu","Lafayette","Iberia","St. Mary","Vermilion","Cameron","Other / not listed"];
+
+// ---- Rule-based FAQ knowledge base ----------------------------------
+// Each entry: keywords to match against the visitor's free-text message,
+// and a canned answer. First match wins, so more specific topics are
+// listed before general ones.
+const FAQS = [
+  { kw:["non-renew","nonrenew","dropped","cancelled","canceled","left the state","left louisiana"],
+    a:"That's really common in Louisiana right now — a lot of the big-name carriers have pulled back from the coastal parishes. It doesn't mean you're uninsurable. I typically place non-renewed homes with specialty carriers built for exactly this, and can usually get something bound within a day or two of getting your info." },
+  { kw:["flood","nfip"],
+    a:"Homeowners insurance never covers flood — that's always a separate policy. Whether you need it depends on your parish and whether your lender requires it, but I'd recommend at least pricing it out even if it's optional; it's often cheaper than people expect. I can pull a flood quote alongside your home quote." },
+  { kw:["bundl","combine","home and auto","home & auto"],
+    a:"Bundling home and auto with the same carrier is usually the single biggest discount available — often 10-20% off compared to separate policies. If you've got both, I always quote them together first." },
+  { kw:["roof","old roof","roof age"],
+    a:"Roof age is honestly the biggest factor in Louisiana home insurance pricing and eligibility right now. Older roofs (15+ years) can still get covered, just usually through different markets than a brand-new roof would use. Doesn't disqualify you, just changes which carriers make sense." },
+  { kw:["wind mitigation","hurricane","shutters","impact window","storm"],
+    a:"If you're in a coastal parish and have storm shutters, impact windows, or roof straps/clips, those often qualify for wind mitigation credits — worth mentioning when you get a quote, it can meaningfully lower your premium." },
+  { kw:["citizens","last resort","state fund"],
+    a:"Louisiana Citizens is the state's insurer of last resort — it's a backstop, not usually the cheapest option. I only place there if the private market genuinely won't take a risk; otherwise I'm shopping SageSure, Auros, Lilypad, SureChoice, GuardianPointe, and surplus lines carriers first." },
+  { kw:["how much","cost","price","expensive","cheap","rate"],
+    a:"Pricing really depends on your specifics — parish, roof age, home value, driving history, and more. The fastest way to get a real number is the quote form (takes about 3 minutes), or just tell me a bit here and I'll get you connected." },
+  { kw:["how long","how fast","turnaround","quick"],
+    a:"Once I have your info, most quotes come back same-day, sometimes within the hour depending on the carrier. If you're on a closing deadline, let me know and I'll prioritize it." },
+  { kw:["auto only","car insurance","just auto","just my car"],
+    a:"Absolutely, auto-only quotes are no problem — though if you also own your home, bundling usually saves more. Happy to just do auto if that's all you need." },
+  { kw:["home only","just my house","just home"],
+    a:"Home-only works fine. If you've got a vehicle too, it's worth bundling for the discount, but no pressure either way." },
+  { kw:["licensed","legit","real agent","who are you","are you real"],
+    a:"I'm the intake assistant for a licensed Louisiana P&C agent — this chat is a quick way to get answers or start a quote; a real, licensed human handles everything after that." },
+];
+
+function matchFaq(text){
+  const t = text.toLowerCase();
+  for(const f of FAQS){ if(f.kw.some(k=>t.includes(k))) return f.a; }
+  return null;
+}
+
+const QUICK_CHIPS = [
+  "How does bundling save money?",
+  "I got non-renewed, now what?",
+  "Do I need flood insurance?",
+  "My roof is older — is that a problem?",
+  "I'm ready to get a quote →",
+];
+
+// ---- Lead-capture sequence, triggered from chat -----------------------
+const INTAKE_STEPS = [
+  { id:"name", q:"Great — let's get you connected. What's your name?", validate:v=>v.trim().length>1 || "Just need a first name at least." },
+  { id:"phone", q:"And the best phone number to reach you?", validate:v=>v.replace(/\D/g,"").length>=10 || "That doesn't look like a full 10-digit number." },
+  { id:"email", q:"What's your email?", validate:v=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) || "That email doesn't look quite right." },
+  { id:"parish", q:"Which parish are you in? (Type it, or \"not sure\")", validate:()=>true },
+  { id:"lineType", q:"Home, auto, or both?", validate:v=>true, quick:["Home","Auto","Both"] },
+];
+
+function App(){
+  const [config, setConfig] = useState({ agentName:"Noah Bethay", agentPhone:"", carrierCount:20 });
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [mode, setMode] = useState("faq"); // faq | intake | done
+  const [intakeIdx, setIntakeIdx] = useState(0);
+  const [intakeData, setIntakeData] = useState({});
+  const [typing, setTyping] = useState(false);
+  const [leadId, setLeadId] = useState(null);
+  const scrollRef = useRef(null);
+
+  useEffect(()=>{
+    fetch(`${API}/api/config/public`).then(r=>r.ok?r.json():{}).then(c=>setConfig(c||{})).catch(()=>{});
+    pushBot(`Hi, I'm here to answer questions about Louisiana home & auto insurance, or get you started on a real quote. What's on your mind?`);
+  }, []);
+
+  useEffect(()=>{
+    if(scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [messages, typing]);
+
+  function pushBot(text, delay=450){
+    setTyping(true);
+    setTimeout(()=>{
+      setTyping(false);
+      setMessages(m=>[...m, { from:"bot", text }]);
+    }, delay);
+  }
+  function pushUser(text){
+    setMessages(m=>[...m, { from:"user", text }]);
+  }
+
+  function startIntake(){
+    setMode("intake");
+    setIntakeIdx(0);
+    setIntakeData({});
+    pushBot(INTAKE_STEPS[0].q);
+  }
+
+  async function finishIntake(data){
+    setTyping(true);
+    try{
+      const payload = {
+        name: data.name, phone: data.phone, email: data.email,
+        parish: data.parish, lineType: (data.lineType||"").toLowerCase().includes("both") ? "bundle" : (data.lineType||"").toLowerCase(),
+        bestTime: "anytime", source: "ai-assistant",
+      };
+      const res = await fetch(`${API}/api/leads`, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(payload) });
+      const lead = await res.json();
+      setTyping(false);
+      if(!res.ok) throw new Error(lead.error || "submit failed");
+      setLeadId(lead.id);
+      setMode("done");
+      pushBot(`Thanks, ${data.name.split(" ")[0]} — got it. I'll compare Louisiana carriers for your situation and reach out shortly. Need something sooner? Call or text ${config.agentName||"the agent"} directly at ${config.agentPhone||"the number on the site"}.`);
+    }catch(e){
+      setTyping(false);
+      pushBot("Hmm, something went wrong submitting that. Mind trying the main quote form instead? It's linked from the home page.");
+      setMode("faq");
+    }
+  }
+
+  function handleSend(text){
+    const trimmed = (text||"").trim();
+    if(!trimmed) return;
+    pushUser(trimmed);
+    setInput("");
+
+    if(mode === "intake"){
+      const step = INTAKE_STEPS[intakeIdx];
+      const ok = step.validate(trimmed);
+      if(ok !== true){
+        pushBot(typeof ok === "string" ? ok : "Could you rephrase that?");
+        return;
+      }
+      const next = { ...intakeData, [step.id]: trimmed };
+      setIntakeData(next);
+      const nextIdx = intakeIdx + 1;
+      if(nextIdx < INTAKE_STEPS.length){
+        setIntakeIdx(nextIdx);
+        pushBot(INTAKE_STEPS[nextIdx].q);
+      } else {
+        finishIntake(next);
+      }
+      return;
+    }
+
+    if(/\b(quote|ready|sign me up|get me a quote|start)\b/i.test(trimmed)){
+      pushBot("Happy to get that started right here.");
+      setTimeout(startIntake, 500);
+      return;
+    }
+
+    const answer = matchFaq(trimmed);
+    if(answer){
+      pushBot(answer);
+    } else {
+      pushBot(`I don't have a canned answer for that one — but I can connect you with ${config.agentName||"the agent"} directly, or you can just say "quote" and I'll get your info to them right now.`);
+    }
+  }
+
+  const chipsToShow = mode === "intake" && INTAKE_STEPS[intakeIdx] && INTAKE_STEPS[intakeIdx].quick
+    ? INTAKE_STEPS[intakeIdx].quick
+    : (mode === "faq" ? QUICK_CHIPS : null);
+
+  const styles = {
+    page:{ minHeight:"100vh", background:C.paper, fontFamily:"'IBM Plex Sans',sans-serif", color:C.ink, display:"flex", flexDirection:"column" },
+    header:{ padding:"18px 20px", borderBottom:`1px solid ${C.line}`, background:C.white },
+    h1:{ fontFamily:"'Fraunces',serif", fontWeight:600, fontSize:19, margin:0 },
+    sub:{ fontSize:12.5, color:C.muted, marginTop:2 },
+    scroll:{ flex:1, overflowY:"auto", padding:"18px 16px", maxWidth:560, width:"100%", margin:"0 auto", boxSizing:"border-box" },
+    bubbleRow:{ display:"flex", marginBottom:10, animation:"riseIn .25s ease" },
+    bubble:{ maxWidth:"78%", padding:"11px 14px", borderRadius:14, fontSize:14.5, lineHeight:1.45 },
+    botBubble:{ background:C.white, border:`1px solid ${C.line}`, borderTopLeftRadius:4 },
+    userBubble:{ background:C.marsh, color:C.white, borderTopRightRadius:4 },
+    typingDot:{ width:6, height:6, borderRadius:99, background:C.muted, display:"inline-block", margin:"0 2px", animation:"bounce 1.2s infinite" },
+    chipsWrap:{ display:"flex", flexWrap:"wrap", gap:8, padding:"4px 16px 12px", maxWidth:560, margin:"0 auto", width:"100%", boxSizing:"border-box" },
+    chip:{ background:C.paper2, border:`1px solid ${C.line}`, borderRadius:99, padding:"7px 13px", fontSize:13, cursor:"pointer", color:C.ink },
+    inputBar:{ borderTop:`1px solid ${C.line}`, background:C.white, padding:12, display:"flex", gap:8, maxWidth:560, margin:"0 auto", width:"100%", boxSizing:"border-box" },
+    input:{ flex:1, border:`1px solid ${C.line}`, borderRadius:10, padding:"11px 13px", fontSize:14.5, fontFamily:"inherit", outline:"none" },
+    sendBtn:{ background:C.brick, color:C.white, border:"none", borderRadius:10, padding:"0 18px", fontSize:14, fontWeight:600, cursor:"pointer" },
+  };
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.header}>
+        <h1 style={styles.h1}>Ask a question</h1>
+        <div style={styles.sub}>{config.agentName || "Financial Assurance"} · usually replies instantly · real quotes from a real licensed agent</div>
+      </div>
+
+      <div style={styles.scroll} ref={scrollRef}>
+        {messages.map((m,i)=>(
+          <div key={i} style={{...styles.bubbleRow, justifyContent: m.from==="user" ? "flex-end" : "flex-start"}}>
+            <div style={{...styles.bubble, ...(m.from==="user" ? styles.userBubble : styles.botBubble)}}>{m.text}</div>
+          </div>
+        ))}
+        {typing && (
+          <div style={{...styles.bubbleRow, justifyContent:"flex-start"}}>
+            <div style={{...styles.bubble, ...styles.botBubble}}>
+              <span style={styles.typingDot}></span>
+              <span style={{...styles.typingDot, animationDelay:"0.15s"}}></span>
+              <span style={{...styles.typingDot, animationDelay:"0.3s"}}></span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {chipsToShow && !typing && mode !== "done" && (
+        <div style={styles.chipsWrap}>
+          {chipsToShow.map(c=>(
+            <button key={c} style={styles.chip} onClick={()=>handleSend(c)}>{c}</button>
+          ))}
+        </div>
+      )}
+
+      {mode !== "done" && (
+        <div style={styles.inputBar}>
+          <input style={styles.input} value={input} placeholder="Type here…" disabled={typing}
+            onChange={e=>setInput(e.target.value)}
+            onKeyDown={e=>{ if(e.key==="Enter") handleSend(input); }} />
+          <button style={styles.sendBtn} onClick={()=>handleSend(input)} disabled={typing}>Send</button>
+        </div>
+      )}
+      {mode === "done" && (
+        <div style={{...styles.inputBar, justifyContent:"center"}}>
+          <a href="/" style={{...styles.sendBtn, textDecoration:"none", display:"inline-block", textAlign:"center"}}>Back to site</a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

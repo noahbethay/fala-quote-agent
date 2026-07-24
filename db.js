@@ -127,4 +127,4 @@ function deleteLead(id) {
   db.prepare("DELETE FROM leads WHERE id = ?").run(id);
 }
 
-module.exports = { db, getConfig, setConfig, listLeads, getLead, insertLead, updateLead, deleteLead, DEFAULT_CONFIG };
+module.exports = { db, getConfig, setConfig, listLeads, getLead, insertLead, updateLead, deleteLead, DEFAULT_CONFIG, DB_PATH };

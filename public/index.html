@@ -219,6 +219,8 @@ function App(){
   const [lastLead, setLastLead] = useState(null);
   const [addOns, setAddOns] = useState([]);
   const [referralCopied, setReferralCopied] = useState(false);
+  const [declFile, setDeclFile] = useState(null);
+  const [declStatus, setDeclStatus] = useState("idle"); // idle | uploading | done | error
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
@@ -305,6 +307,21 @@ function App(){
     }
   }
 
+  async function uploadDeclarations(file){
+    if(!file || !lastLead) return;
+    if(file.size > 10*1024*1024){ setDeclStatus("error"); return; }
+    setDeclFile(file);
+    setDeclStatus("uploading");
+    try{
+      const fd = new FormData();
+      fd.append("declarations", file);
+      const res = await fetch(`${API}/api/leads/${lastLead.id}/declarations`, { method:"POST", body: fd });
+      if(!res.ok) throw new Error("upload failed");
+      setDeclStatus("done");
+    }catch(e){
+      setDeclStatus("error");
+    }
+  }
   async function toggleAddOn(v){
     let arr = addOns || [];
     arr = arr.includes(v) ? arr.filter(x=>x!==v) : [...arr, v];
@@ -562,6 +579,24 @@ function App(){
                     <button key={a} style={addOnStyle(addOns.includes(a))} onClick={()=>toggleAddOn(a)}>{a}</button>
                   ))}
                 </div>
+              </div>
+
+              <div style={styles.addOnCard}>
+                <div style={styles.eyebrow}>Optional</div>
+                <div style={styles.referralTitle}>Have a current declarations page?</div>
+                <p style={{...styles.helptext, fontSize:13}}>Upload it and I can compare it against new quotes directly — totally optional, speeds things up if you have it handy.</p>
+                {declStatus==="done" ? (
+                  <div style={{...styles.badge, marginTop:8}}>✅ Uploaded — thanks!</div>
+                ) : (
+                  <React.Fragment>
+                    <label style={{...styles.btnGhost, display:"inline-block", marginTop:8, cursor:"pointer"}}>
+                      {declStatus==="uploading" ? "Uploading…" : (declFile ? declFile.name : "Choose PDF or photo")}
+                      <input type="file" accept="application/pdf,image/jpeg,image/png,image/heic" style={{display:"none"}}
+                        onChange={e=>uploadDeclarations(e.target.files && e.target.files[0])} disabled={declStatus==="uploading"} />
+                    </label>
+                    {declStatus==="error" && <div style={{...styles.errorText, marginTop:6}}>Couldn't upload that file — PDF/JPG/PNG under 10MB only.</div>}
+                  </React.Fragment>
+                )}
               </div>
             </div>
             <div style={styles.footerNav}>
