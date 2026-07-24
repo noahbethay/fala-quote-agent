@@ -400,6 +400,7 @@ function App(){
   const [pinValue, setPinValue] = useState("");
   const [pinError, setPinError] = useState(false);
   const [leads, setLeads] = useState([]);
+  const [lastRefreshed, setLastRefreshed] = useState(null);
   const [search, setSearch] = useState("");
   const [filterTag, setFilterTag] = useState("all");
   const [sortBy, setSortBy] = useState("date");
@@ -533,7 +534,16 @@ function App(){
       setPinError(true);
     }
   }
-  async function refreshLeads(){ try{ setLeads(await adminApi("/leads")); }catch(e){} }
+  async function refreshLeads(){ try{ setLeads(await adminApi("/leads")); setLastRefreshed(Date.now()); }catch(e){} }
+  async function viewDeclarations(leadId){
+    try{
+      const token = localStorage.getItem("fala-admin-token") || "";
+      const res = await fetch(`${API}/api/admin/leads/${leadId}/declarations`, { headers: { Authorization: "Bearer "+token } });
+      if(!res.ok) throw new Error("not found");
+      const blob = await res.blob();
+      window.open(URL.createObjectURL(blob), "_blank");
+    }catch(e){ alert("Couldn't load that file."); }
+  }
   async function updateStatus(id, status){ const updated = await adminApi(`/leads/${id}`, { method:"PATCH", body: JSON.stringify({ status }) }); setLeads(ls=>ls.map(l=>l.id===id?updated:l)); }
   async function updateNote(id, agentNote){ const updated = await adminApi(`/leads/${id}`, { method:"PATCH", body: JSON.stringify({ agentNote }) }); setLeads(ls=>ls.map(l=>l.id===id?updated:l)); }
   async function deleteLead(id){
@@ -884,39 +894,45 @@ function App(){
         return (
           <div style={styles.dash}>
             <div style={styles.dashHeader}>
-              <h2 style={{...styles.h1, fontSize:20}}>Your leads</h2>
+              <div>
+                <h2 style={{...styles.h1, fontSize:20, margin:0}}>Your leads</h2>
+                <div style={{fontSize:11.5, color:"#8b95a0", marginTop:3, display:"flex", alignItems:"center", gap:5}}>
+                  <span style={{width:6,height:6,borderRadius:99,background:C.marsh,display:"inline-block"}}></span>
+                  {lastRefreshed ? `Updated ${Math.max(0,Math.round((Date.now()-lastRefreshed)/1000))}s ago` : "Live"}
+                </div>
+              </div>
               <div style={{display:"flex",gap:8}}>
-                <button style={styles.miniBtn} onClick={openSettings}>Settings</button>
-                <button style={styles.miniBtn} onClick={exportCsv}>Export CSV</button>
-                <button style={styles.miniBtn} onClick={refreshLeads}>Refresh</button>
-                <button style={styles.miniBtn} onClick={goIntro}>Exit</button>
+                <button className="fala-chip" style={styles.miniBtn} onClick={openSettings}>Settings</button>
+                <button className="fala-chip" style={styles.miniBtn} onClick={exportCsv}>Export CSV</button>
+                <button className="fala-chip" style={styles.miniBtn} onClick={refreshLeads}>Refresh</button>
+                <button className="fala-chip" style={styles.miniBtn} onClick={goIntro}>Exit</button>
               </div>
             </div>
 
             <div style={styles.statGrid}>
-              <div style={styles.stat}><div style={styles.statNum}>{totals.today}</div><div style={styles.statLbl}>Today</div></div>
-              <div style={styles.stat}><div style={styles.statNum}>{totals.week}</div><div style={styles.statLbl}>This week</div></div>
-              <div style={styles.stat}><div style={styles.statNum}>{totals.total}</div><div style={styles.statLbl}>All time</div></div>
-              <div style={styles.stat}><div style={styles.statNum}>{totals.bundle}</div><div style={styles.statLbl}>Bundle opps</div></div>
+              <div className="fala-card" style={{...styles.stat, animation:"fadeUp .3s ease 0s both"}}><div style={styles.statNum}>{totals.today}</div><div style={styles.statLbl}>Today</div></div>
+              <div className="fala-card" style={{...styles.stat, animation:"fadeUp .3s ease .06s both"}}><div style={styles.statNum}>{totals.week}</div><div style={styles.statLbl}>This week</div></div>
+              <div className="fala-card" style={{...styles.stat, animation:"fadeUp .3s ease .12s both"}}><div style={styles.statNum}>{totals.total}</div><div style={styles.statLbl}>All time</div></div>
+              <div className="fala-card" style={{...styles.stat, animation:"fadeUp .3s ease .18s both"}}><div style={styles.statNum}>{totals.bundle}</div><div style={styles.statLbl}>Bundle opps</div></div>
             </div>
 
             <div style={styles.filterRow}>
-              <input type="text" placeholder="Search name, phone, parish…" style={styles.searchInput} value={search} onChange={e=>setSearch(e.target.value)} />
-              <select style={styles.filterSelect} value={filterTag} onChange={e=>setFilterTag(e.target.value)}>
+              <input type="text" className="fala-input" placeholder="Search name, phone, parish…" style={styles.searchInput} value={search} onChange={e=>setSearch(e.target.value)} />
+              <select className="fala-input" style={styles.filterSelect} value={filterTag} onChange={e=>setFilterTag(e.target.value)}>
                 {filterOptions.map(f=><option key={f.v} value={f.v}>{f.label}</option>)}
               </select>
-              <select style={styles.filterSelect} value={sortBy} onChange={e=>setSortBy(e.target.value)}>
+              <select className="fala-input" style={styles.filterSelect} value={sortBy} onChange={e=>setSortBy(e.target.value)}>
                 <option value="date">Newest first</option>
                 <option value="score">Highest score</option>
               </select>
             </div>
 
-            {filtered.length>0 ? filtered.map(l=>{
-              const detailRows = Object.entries(l).filter(([k])=>!skip.includes(k)).map(([k,v])=>({ k:labelize(k), v: Array.isArray(v)?v.join(", "):(v||"—") }));
+            {filtered.length>0 ? filtered.map((l,li)=>{
+              const detailRows = Object.entries(l).filter(([k])=>!skip.includes(k) && k!=="declarationsFile").map(([k,v])=>({ k:labelize(k), v: Array.isArray(v)?v.join(", "):(v||"—") }));
               const tagsView = (l.tags||[]).map(t=>{ const [label,cls]=tagMeta[t]||[t,"new"]; return { label, style:{...tagBase, ...(tagColor[cls]||tagColor.new)} }; });
               const open = !!openDetail[l.id];
               return (
-                <div key={l.id} style={styles.leadCard}>
+                <div key={l.id} className="fala-card" style={{...styles.leadCard, animation: li<10 ? `fadeUp .3s ease ${Math.min(li*0.04,0.4)}s both` : "none"}}>
                   <div style={styles.leadTop}>
                     <div>
                       <div style={styles.leadName}>{l.name||"(no name)"}</div>
@@ -928,6 +944,7 @@ function App(){
                   </div>
                   <div style={styles.leadTags}>
                     {tagsView.map((t,i)=><span key={i} style={t.style}>{t.label}</span>)}
+                    {l.declarationsFile && <span style={{...tagBase, background:"#EAF2FB", color:"#2c5a8c"}}>📎 Declarations</span>}
                   </div>
                   {l.note && <div style={{...styles.helptext, marginTop:8, fontSize:12.5}}>📝 {l.note}</div>}
 
@@ -940,14 +957,24 @@ function App(){
                   )}
 
                   <div style={styles.leadActions}>
-                    <button style={styles.miniBtn} onClick={()=>toggleDetail(l.id)}>{open ? "Hide details" : "Details"}</button>
-                    <a style={styles.miniBtnLink} href={"tel:"+(l.phone||"").replace(/[^0-9+]/g,"")}>Call</a>
-                    <a style={styles.miniBtnLink} href={"mailto:"+(l.email||"")}>Email</a>
-                    <button style={styles.miniBtnDanger} onClick={()=>deleteLead(l.id)}>Delete</button>
+                    <button className="fala-chip" style={styles.miniBtn} onClick={()=>toggleDetail(l.id)}>{open ? "Hide details" : "Details"}</button>
+                    <a className="fala-chip" style={styles.miniBtnLink} href={"tel:"+(l.phone||"").replace(/[^0-9+]/g,"")}>Call</a>
+                    <a className="fala-chip" style={styles.miniBtnLink} href={"mailto:"+(l.email||"")}>Email</a>
+                    {l.declarationsFile && <button className="fala-chip" style={styles.miniBtnLink} onClick={()=>viewDeclarations(l.id)}>View declarations</button>}
+                    <button className="fala-chip" style={styles.miniBtnDanger} onClick={()=>deleteLead(l.id)}>Delete</button>
                   </div>
                 </div>
               );
-            }) : <div style={styles.empty}>{emptyMessage}</div>}
+            }) : (
+              <div style={{textAlign:"center", padding:"48px 20px", animation:"fadeUp .3s ease"}}>
+                <div style={{fontSize:36, marginBottom:10, opacity:.6}}>{leads.length ? "🔍" : "📭"}</div>
+                <div style={{fontSize:14, fontWeight:600, color:C.ink, marginBottom:4}}>{leads.length ? "No matches" : "No leads yet"}</div>
+                <div style={{fontSize:12.5, color:"#8b95a0", maxWidth:260, margin:"0 auto"}}>{emptyMessage}</div>
+                {!leads.length && (
+                  <button className="fala-btn-primary" style={{...styles.btnPrimary, marginTop:16, flex:"none"}} onClick={()=>{ navigator.clipboard && navigator.clipboard.writeText(location.origin+"/"); }}>Copy your quote link</button>
+                )}
+              </div>
+            )}
           </div>
         );
       })()}
