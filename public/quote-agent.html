@@ -104,6 +104,7 @@ const STEPS = [
   { id:"email", section:3, eyebrow:"Contact", q:"Email address?", type:"email", placeholder:"you@email.com" },
   { id:"bestTime", section:3, eyebrow:"Contact", q:"Best time to reach you?", type:"options",
     options:[{v:"morning",label:"Morning"},{v:"afternoon",label:"Afternoon"},{v:"evening",label:"Evening"},{v:"anytime",label:"Anytime"}] },
+  { id:"consent", section:3, eyebrow:"Almost done", q:"Just a couple quick confirmations", type:"consent" },
 ];
 
 function visibleSteps(data){ return STEPS.filter(s=>!s.cond || s.cond(data)); }
@@ -460,6 +461,9 @@ function App(){
       if(step.type==="email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)){ setStepError("Enter a valid email address."); return; }
       if(step.type==="tel" && trimmed.replace(/\D/g,"").length<10){ setStepError("Enter a 10-digit phone number."); return; }
     }
+    if(step.type==="consent"){
+      if(!data.privacyConsent || !data.contactConsent){ setStepError("Please check both required boxes to continue."); return; }
+    }
     const vis = visibleSteps(data);
     const nextIndex = stepIndex + 1;
     if(nextIndex >= vis.length){ await finishQuiz(); }
@@ -581,11 +585,11 @@ function App(){
   const isIntro = screen==="intro", isQuiz = screen==="quiz", isDone = screen==="done",
     isPin = screen==="dash-pin", isDash = screen==="dash", isSettings = screen==="settings";
 
-  const heroHeadline = heroFraming==="loss" ? "Find out if you're overpaying for home & auto insurance." : "Get a real Louisiana home & auto quote.";
+  const heroHeadline = heroFraming==="loss" ? "Find out if you're overpaying for home & auto insurance." : "Let us shop your insurance for you.";
   const heroSub = heroFraming==="loss"
     ? "Takes about 3 minutes. Most Louisiana homeowners haven't shopped their policy in years — let's see what you're leaving on the table."
-    : "Takes about 3 minutes. I shop your info across multiple Louisiana carriers — you don't have to guess which one will actually write your risk.";
-  const heroCta = heroFraming==="loss" ? "Check my rate" : "Start my quote";
+    : "Answer a few simple questions and a licensed local agent will compare coverage options from multiple Louisiana carriers. Takes about 3 minutes. No obligation.";
+  const heroCta = heroFraming==="loss" ? "Check my rate" : "Start My Quote";
 
   return (
     <div style={styles.appShell}>
@@ -649,6 +653,9 @@ function App(){
           </div>
           <div style={styles.footerNav}>
             <button className="fala-btn-primary" style={styles.btnPrimaryFull} onClick={clickStart}>{heroCta} →</button>
+          </div>
+          <div style={{textAlign:"center",fontSize:12.5,padding:"2px 0 4px"}}>
+            <a href="#" onClick={e=>{e.preventDefault(); clickStart();}} style={{color:"#6b7680",fontWeight:600}}>📄 Already insured? Upload your current policy</a>
           </div>
           <div style={{textAlign:"center",fontSize:12,padding:"6px 0 4px"}}><a href="./ai-assistant.html" style={{color:"#2F5D50",fontWeight:600}}>Prefer to chat? Try our AI assistant →</a></div>
           <div style={styles.producerLink}><a href="#" style={{color:"#9aa3ab"}} onClick={goPin}>Producer login</a></div>
@@ -722,6 +729,27 @@ function App(){
                 </div>
               )}
 
+              {step.type==="consent" && (
+                <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:4}}>
+                  <label style={{display:"flex",gap:10,alignItems:"flex-start",cursor:"pointer",fontSize:13.5,lineHeight:1.4}}>
+                    <input type="checkbox" checked={!!data.privacyConsent} onChange={e=>setAnswer("privacyConsent", e.target.checked)}
+                      style={{width:20,height:20,marginTop:1,flexShrink:0,accentColor:C.brick}} />
+                    <span>I've read and agree to the <a href="/privacy.html" target="_blank" style={{color:C.marshDark,fontWeight:600}}>Privacy Policy</a>. <span style={{color:"#8b95a0"}}>(Required)</span></span>
+                  </label>
+                  <label style={{display:"flex",gap:10,alignItems:"flex-start",cursor:"pointer",fontSize:13.5,lineHeight:1.4}}>
+                    <input type="checkbox" checked={!!data.contactConsent} onChange={e=>setAnswer("contactConsent", e.target.checked)}
+                      style={{width:20,height:20,marginTop:1,flexShrink:0,accentColor:C.brick}} />
+                    <span>I agree to be contacted by phone, text, or email about this quote request. <span style={{color:"#8b95a0"}}>(Required)</span></span>
+                  </label>
+                  <label style={{display:"flex",gap:10,alignItems:"flex-start",cursor:"pointer",fontSize:13.5,lineHeight:1.4}}>
+                    <input type="checkbox" checked={!!data.smsConsent} onChange={e=>setAnswer("smsConsent", e.target.checked)}
+                      style={{width:20,height:20,marginTop:1,flexShrink:0,accentColor:C.brick}} />
+                    <span>It's okay to text me updates about this request. See <a href="/sms-terms.html" target="_blank" style={{color:C.marshDark,fontWeight:600}}>SMS Terms</a>. <span style={{color:"#8b95a0"}}>(Optional)</span></span>
+                  </label>
+                  <p style={{...styles.helptext, fontSize:12, marginTop:2}}>Submitting this request does not bind or change any insurance coverage.</p>
+                </div>
+              )}
+
               {["text","tel","email"].includes(step.type) && (
                 <input type={step.type} className="fala-input" style={styles.input} placeholder={step.placeholder||""} value={val||""}
                   onChange={e=>setAnswer(step.id,e.target.value)}
@@ -733,7 +761,9 @@ function App(){
 
             <div style={styles.footerNav}>
               <button style={styles.btnGhost} onClick={goBack}>{stepIndex===0 ? "" : "← Back"}</button>
-              <button className="fala-btn-primary" style={styles.btnPrimary} onClick={goNextClick} disabled={submitting}>{submitting ? "Submitting…" : "Continue"}</button>
+              <button className="fala-btn-primary" style={styles.btnPrimary} onClick={goNextClick} disabled={submitting}>
+                {submitting ? "Submitting…" : (step.type==="consent" ? "Submit My Quote Request" : "Continue")}
+              </button>
             </div>
             {submitError && <div style={{...styles.errorText, textAlign:"center", padding:"0 22px 14px"}}>{submitError}</div>}
           </React.Fragment>
@@ -743,6 +773,7 @@ function App(){
       {isDone && (() => {
         const lead = lastLead || {};
         const leadFirstName = (lead.name||"").split(" ")[0] || "there";
+        const confirmationNumber = "FALA-" + String(lead.id||"").slice(-6).toUpperCase();
         const bestTimeLabel = lead.bestTime==="anytime" ? "phone or email" : (lead.bestTime||"soon");
         const referralLink = "getfala.com/quote?ref=" + (lead.refCode || "FALA");
         const addOnList = ["Flood","Umbrella","Life","Motorcycle/Boat","Renters for a tenant","Business"];
@@ -771,6 +802,7 @@ function App(){
                   </svg>
                 </div>
                 <h1 style={{...styles.h1, fontSize:26, animation:"fadeUp .35s ease .1s both"}}>Thanks, {leadFirstName}.</h1>
+                <div style={{fontSize:11.5, color:"#8b95a0", fontFamily:"monospace", marginTop:2, animation:"fadeUp .35s ease .14s both"}}>Confirmation #{confirmationNumber}</div>
                 <p style={{...styles.helptext, fontSize:14.5, marginTop:10, animation:"fadeUp .35s ease .18s both"}}>
                   Got everything I need. I'll compare Louisiana carriers for your situation and reach out by {bestTimeLabel} — usually within one business day.
                 </p>
@@ -806,6 +838,7 @@ function App(){
                 <div style={styles.eyebrow}>Optional</div>
                 <div style={styles.referralTitle}>Have a current declarations page?</div>
                 <p style={{...styles.helptext, fontSize:13}}>Upload it and I can compare it against new quotes directly — totally optional, speeds things up if you have it handy.</p>
+                <p style={{...styles.helptext, fontSize:11.5, color:"#8b95a0"}}>We use your current policy only to understand your existing coverage and prepare accurate options — a licensed agent reviews it personally.</p>
                 {declStatus==="done" ? (
                   <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,animation:"fadeUp .3s ease"}}>
                     <div style={{width:26,height:26,borderRadius:"50%",background:"#EAF0EC",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,animation:"checkPop .4s cubic-bezier(.16,1,.3,1)"}}>
