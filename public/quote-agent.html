@@ -122,23 +122,23 @@ function labelize(k){ return k.replace(/([A-Z])/g,' $1').replace(/^./,c=>c.toUpp
 
 function optStyle(selected){
   return { textAlign:"left", border: "1.5px solid " + (selected?C.brick:C.line), background: selected?"#FBEFEC":C.white,
-    borderRadius:14, padding:"14px 16px", fontFamily:"inherit", fontSize:15, color:C.ink, cursor:"pointer",
+    borderRadius:14, padding:"16px 16px", minHeight:56, boxSizing:"border-box", fontFamily:"inherit", fontSize:16, color:C.ink, cursor:"pointer",
     fontWeight: selected?600:400, transition:"all .15s ease", width:"100%" };
 }
 function chipStyle(on){
   return { border:"1.5px solid " + (on?C.marsh:C.line), background: on?C.marsh:C.white, color: on?C.white:C.ink,
-    borderRadius:999, padding:"9px 14px", fontSize:13.5, cursor:"pointer", transition:"all .15s ease", fontFamily:"inherit" };
+    borderRadius:999, padding:"12px 16px", minHeight:44, boxSizing:"border-box", fontSize:14.5, cursor:"pointer", transition:"all .15s ease", fontFamily:"inherit" };
 }
 function addOnStyle(on){
   return { border:"1.5px solid " + (on?C.amber:C.line), background: on?"#FDF3E3":C.white, color:C.ink,
-    borderRadius:999, padding:"9px 14px", fontSize:13, cursor:"pointer", fontFamily:"inherit" };
+    borderRadius:999, padding:"12px 16px", minHeight:44, boxSizing:"border-box", fontSize:14, cursor:"pointer", fontFamily:"inherit" };
 }
 
 const styles = {
   screenPad:{padding:"26px 22px 100px",display:"flex",flexDirection:"column",gap:16,minHeight:"100vh"},
   screen:{flex:1,padding:"26px 22px 100px",display:"flex",flexDirection:"column",gap:16,animation:"fadeUp .32s cubic-bezier(.16,1,.3,1)"},
   eyebrow:{fontSize:11,textTransform:"uppercase",letterSpacing:".1em",color:C.marsh,fontWeight:600},
-  h1:{fontFamily:"'Fraunces',Georgia,serif",fontWeight:600,letterSpacing:"-0.01em",lineHeight:1.15,margin:"10px 0 12px",fontSize:30},
+  h1:{fontFamily:"'Fraunces',Georgia,serif",fontWeight:600,letterSpacing:"-0.015em",lineHeight:1.12,margin:"10px 0 12px",fontSize:34},
   helptext:{fontSize:13.5,color:"#5b6670",lineHeight:1.5},
   heroWrap:{borderRadius:24,padding:"32px 20px 26px",background:"linear-gradient(120deg, #F6F1E7 0%, #EDE6D6 35%, #E7E0CE 60%, #F6F1E7 100%)",backgroundSize:"200% 200%",animation:"gradientShift 14s ease infinite",position:"relative",overflow:"hidden"},
   trustGrid:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginTop:22},
@@ -154,9 +154,9 @@ const styles = {
   howStepTitle:{fontSize:13.5,fontWeight:700,color:C.ink},
   howStepSub:{fontSize:12,color:"#6b7680",marginTop:1,lineHeight:1.4},
   footerNav:{position:"sticky",bottom:0,left:0,right:0,background:C.white,borderTop:`1px solid ${C.line}`,padding:"14px 22px",display:"flex",gap:10,alignItems:"center",maxWidth:480,margin:"0 auto"},
-  btnPrimaryFull:{border:"none",borderRadius:10,padding:"14px 20px",fontSize:15,fontWeight:600,fontFamily:"inherit",cursor:"pointer",background:C.brick,color:C.white,flex:1,width:"100%",boxShadow:"0 6px 16px rgba(138,46,46,0.22)"},
-  btnPrimary:{border:"none",borderRadius:10,padding:"14px 20px",fontSize:15,fontWeight:600,fontFamily:"inherit",cursor:"pointer",background:C.brick,color:C.white,flex:1,boxShadow:"0 6px 16px rgba(138,46,46,0.22)"},
-  btnGhost:{border:"none",borderRadius:10,padding:"14px 10px",fontSize:15,fontWeight:600,fontFamily:"inherit",cursor:"pointer",background:"transparent",color:"#6b7680"},
+  btnPrimaryFull:{border:"none",borderRadius:12,padding:"16px 20px",minHeight:56,fontSize:16,fontWeight:600,fontFamily:"inherit",cursor:"pointer",background:C.brick,color:C.white,flex:1,width:"100%",boxShadow:"0 6px 16px rgba(138,46,46,0.22)",boxSizing:"border-box"},
+  btnPrimary:{border:"none",borderRadius:12,padding:"16px 20px",minHeight:56,fontSize:16,fontWeight:600,fontFamily:"inherit",cursor:"pointer",background:C.brick,color:C.white,flex:1,boxShadow:"0 6px 16px rgba(138,46,46,0.22)",boxSizing:"border-box"},
+  btnGhost:{border:"none",borderRadius:12,padding:"16px 10px",minHeight:56,fontSize:16,fontWeight:600,fontFamily:"inherit",cursor:"pointer",background:"transparent",color:"#6b7680",boxSizing:"border-box"},
   producerLink:{textAlign:"center",fontSize:11,color:"#9aa3ab",padding:"10px 0 4px"},
   resumeBanner:{background:C.paper2,borderRadius:12,padding:14,marginBottom:4},
   miniBtnDark:{fontSize:12,padding:"8px 12px",borderRadius:8,border:"none",background:C.brick,color:C.white,cursor:"pointer",fontFamily:"inherit",fontWeight:600},
@@ -173,7 +173,7 @@ const styles = {
   optionsWrap:{display:"flex",flexDirection:"column",gap:10,marginTop:4},
   optSub:{display:"block",fontSize:12,fontWeight:400,color:"#6b7680",marginTop:2},
   chipsWrap:{display:"flex",flexWrap:"wrap",gap:8,marginTop:4},
-  input:{width:"100%",padding:"13px 14px",borderRadius:10,border:`1.5px solid ${C.line}`,fontSize:15,fontFamily:"inherit",background:C.white,color:C.ink,boxSizing:"border-box",transition:"border-color .15s ease, box-shadow .15s ease"},
+  input:{width:"100%",padding:"16px 14px",minHeight:56,borderRadius:12,border:`1.5px solid ${C.line}`,fontSize:16,fontFamily:"inherit",background:C.white,color:C.ink,boxSizing:"border-box",transition:"border-color .15s ease, box-shadow .15s ease"},
   errorText:{color:C.danger,fontSize:12.5,fontWeight:600,marginTop:-6},
   fieldLabel:{display:"flex",flexDirection:"column",gap:6,fontSize:12.5,fontWeight:600,color:"#4b5560"},
   row2:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
@@ -624,7 +624,7 @@ function App(){
                   <div style={styles.badgeRow}>
                     <span style={styles.badge}>🛡️ Licensed LA agent</span>
                     <span style={styles.badge}>✓ No cost to you</span>
-                    <span style={styles.badge}>⏱ 3-minute form</span>
+                    <span style={styles.badge}>🔒 Secure & private</span>
                   </div>
                 </div>
               </div>
@@ -675,7 +675,7 @@ function App(){
               <div style={styles.gauge}>
                 {gaugeSegs.map((seg,i)=><div key={i} style={seg.style}></div>)}
               </div>
-              <div style={styles.gaugeLabelRow}><span>{sectionNames[step.section]}</span><span>{stepIndex+1} / {vis.length}</span></div>
+              <div style={styles.gaugeLabelRow}><span>{sectionNames[step.section]}</span><span>{stepIndex+1} / {vis.length} · {Math.round(((stepIndex+1)/vis.length)*100)}%</span></div>
             </div>
 
             {showSavingsMeter && (
@@ -834,11 +834,18 @@ function App(){
                   </div>
                 ) : (
                   <React.Fragment>
-                    <label className="fala-chip" style={{...styles.btnGhost, display:"inline-block", marginTop:8, cursor:"pointer", border:`1.5px solid ${C.line}`}}>
-                      {declFile ? declFile.name : "Choose PDF or photo"}
-                      <input type="file" accept="application/pdf,image/jpeg,image/png,image/heic" style={{display:"none"}}
-                        onChange={e=>uploadDeclarations(e.target.files && e.target.files[0])} />
-                    </label>
+                    <div style={{display:"flex", gap:8, marginTop:10}}>
+                      <label className="fala-chip" style={{...styles.btnGhost, flex:1, textAlign:"center", cursor:"pointer", border:`1.5px solid ${C.line}`, borderRadius:12, padding:"14px 8px", fontSize:14}}>
+                        📷 Take Photo
+                        <input type="file" accept="image/*" capture="environment" style={{display:"none"}}
+                          onChange={e=>uploadDeclarations(e.target.files && e.target.files[0])} />
+                      </label>
+                      <label className="fala-chip" style={{...styles.btnGhost, flex:1, textAlign:"center", cursor:"pointer", border:`1.5px solid ${C.line}`, borderRadius:12, padding:"14px 8px", fontSize:14}}>
+                        📁 Choose File
+                        <input type="file" accept="application/pdf,image/jpeg,image/png,image/heic" style={{display:"none"}}
+                          onChange={e=>uploadDeclarations(e.target.files && e.target.files[0])} />
+                      </label>
+                    </div>
                     {declStatus==="error" && <div style={{...styles.errorText, marginTop:6}}>Couldn't upload that file — PDF/JPG/PNG under 10MB only.</div>}
                   </React.Fragment>
                 )}
