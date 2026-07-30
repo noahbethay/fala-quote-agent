@@ -396,6 +396,7 @@ function App(){
   const DECL_STEPS = ["Reading declarations page…","Extracting policy details…","Checking carrier eligibility…","Saving to your file…"];
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
+  const [referredBy, setReferredBy] = useState(null);
 
   // producer dashboard state
   const [pinValue, setPinValue] = useState("");
@@ -420,6 +421,10 @@ function App(){
       try {
         const raw = localStorage.getItem(DRAFT_KEY);
         if (raw) { const d = JSON.parse(raw); setDraft(d); setHasDraft(true); }
+      } catch (e) {}
+      try {
+        const ref = new URLSearchParams(location.search).get("ref");
+        if (ref && ref !== "FALA") setReferredBy(ref);
       } catch (e) {}
       setLoaded(true);
     })();
@@ -474,7 +479,8 @@ function App(){
   async function finishQuiz(){
     setSubmitting(true); setSubmitError(null);
     try{
-      const lead = await api("/api/leads", { method:"POST", body: JSON.stringify(data) });
+      const payload = referredBy ? { ...data, referredBy } : data;
+      const lead = await api("/api/leads", { method:"POST", body: JSON.stringify(payload) });
       saveDraft(null);
       setLastLead(lead); setAddOns([]); setScreen("done");
     }catch(e){
@@ -517,7 +523,7 @@ function App(){
     }
   }
   function copyReferral(){
-    const link = "getfala.com/quote?ref=" + (lastLead ? lastLead.refCode : "FALA");
+    const link = location.origin + "/?ref=" + (lastLead ? lastLead.refCode : "FALA");
     if(navigator.clipboard) navigator.clipboard.writeText(link).catch(()=>{});
     setReferralCopied(true);
     setTimeout(()=>setReferralCopied(false), 1800);
@@ -775,7 +781,7 @@ function App(){
         const leadFirstName = (lead.name||"").split(" ")[0] || "there";
         const confirmationNumber = "FALA-" + String(lead.id||"").slice(-6).toUpperCase();
         const bestTimeLabel = lead.bestTime==="anytime" ? "phone or email" : (lead.bestTime||"soon");
-        const referralLink = "getfala.com/quote?ref=" + (lead.refCode || "FALA");
+        const referralLink = (typeof location!=="undefined" ? location.origin : "") + "/?ref=" + (lead.refCode || "FALA");
         const addOnList = ["Flood","Umbrella","Life","Motorcycle/Boat","Renters for a tenant","Business"];
         const confetti = confettiEnabled ? Array.from({length:26}).map((_,i)=>{
           const colors=[C.brick,C.marsh,C.amber];
